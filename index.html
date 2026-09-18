@@ -184,7 +184,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="card-title">What are you creating?</div>
       </div>
       <div class="card-body">
-        <div class="opt-grid cols2">
+        <div class="opt-grid cols3">
           <button class="opt-btn" onclick="pick('docType','quote',this)">
             <span class="opt-icon">📋</span>
             <span class="opt-label">Quote</span>
@@ -194,6 +194,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <span class="opt-icon">📝</span>
             <span class="opt-label">Contract</span>
             <span class="opt-desc">Executable agreement with T&C and signature blocks</span>
+          </button>
+          <button class="opt-btn" onclick="pick('docType','renewal',this)">
+            <span class="opt-icon">🔄</span>
+            <span class="opt-label">Client Renewal</span>
+            <span class="opt-desc">Renewal agreement for an existing client</span>
           </button>
         </div>
       </div>
@@ -209,11 +214,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="card-title">What products are you selling?</div>
       </div>
       <div class="card-body">
-        <div class="opt-grid cols2">
+        <div class="opt-grid cols3">
           <button class="opt-btn" onclick="pick('products','psa',this)">
             <span class="opt-icon">🔧</span>
             <span class="opt-label">New Rev.io</span>
             <span class="opt-desc">User-based New Rev.io platform</span>
+          </button>
+          <button class="opt-btn" onclick="pick('products','tigerpaw',this)">
+            <span class="opt-icon">🐯</span>
+            <span class="opt-label">Tigerpaw</span>
+            <span class="opt-desc">Renewal at the client's current Tigerpaw minimum</span>
           </button>
           <button class="opt-btn" onclick="pick('products','billing',this)">
             <span class="opt-icon">💰</span>
@@ -20479,6 +20489,9 @@ const s={
   qbo:false,qboRate:250,
   connectwise:false,connectwiseRate:250,
   netsuite:false,netsuiteRate:250,
+  // Tigerpaw renewal — current charges become the minimum, current users are included
+  tpCurrentCharges:0,tpMin:0,tpStdUsers:0,tpFieldUsers:0,
+  tpStdOverage:115,tpFieldOverage:30,
   // Combined
   combinedMin:1000,
 };
@@ -20504,6 +20517,9 @@ function go(from){
   // Skip step 3 for billing-only
   if(from===2&&s.products==='billing'){s.starterPack=false;next=3;}
   if(from<0&&cur===3&&s.products==='billing')next=2; // back past step 3
+  // Starter Pack does not apply to a Tigerpaw renewal
+  if(from===2&&s.products==='tigerpaw'){s.starterPack=false;next=4;}
+  if(from<0&&cur===4&&s.products==='tigerpaw')next=2; // back past step 3
 
   // Build step 5 when entering it
   if(next===4)buildStep5();
@@ -20563,6 +20579,11 @@ function pick(key,val,el){
 function buildStep5(){
   const inner=document.getElementById('step5inner');
   inner.innerHTML='';
+  if(s.products==='tigerpaw'){
+    inner.appendChild(buildTigerpawCard());
+    setTimeout(updateTigerpawRec,0);
+    return;
+  }
   if(s.products==='psa'||s.products==='both') inner.appendChild(buildPsaCard());
   if(s.products==='billing'||s.products==='both') inner.appendChild(buildBillingCard());
   if(s.products==='both'){
@@ -20698,6 +20719,115 @@ function updateCombinedMin(){
   if(billingFee>0) parts.push(`Billing ${fmt(billingFee)}`);
   if(addons>0) parts.push(`Add-ons ${fmt(addons)}`);
   recEl.innerHTML=`<b>Suggested Combined Minimum: ${fmt(rec)}/mo</b>${parts.length?' — '+parts.join(' + '):''}<br><span style="color:var(--text2);font-size:12px">Updates as you adjust New Rev.io and Billing fields above.</span>`;
+}
+
+function buildTigerpawCard(){
+  const card=document.createElement('div');
+  card.className='card';
+  card.innerHTML=`
+    <div class="card-head">
+      <div class="card-step">Step 4 of 5</div>
+      <div class="card-title">Tigerpaw Renewal</div>
+      <div class="card-sub">Hold the client at their current minimum with their current users included.</div>
+    </div>
+    <div class="card-body">
+      <div class="slabel">Current Tigerpaw Agreement</div>
+      <div class="fg g1">
+        <div class="field">
+          <label>Current Tigerpaw Monthly Charges ($)</label>
+          <input type="number" id="tp_charges" value="${s.tpCurrentCharges||''}" min="0" step="0.01" placeholder="e.g. 1450"
+                 oninput="s.tpCurrentCharges=parseFloat(this.value)||0;syncTigerpawMin();updateTigerpawRec()">
+          <span class="hint">Carried over as the renewal minimum below</span>
+        </div>
+      </div>
+      <div class="fg g2">
+        <div class="field">
+          <label>Current Number of Standard Users</label>
+          <input type="number" id="tp_std" value="${s.tpStdUsers||''}" min="0" placeholder="e.g. 12"
+                 oninput="s.tpStdUsers=parseInt(this.value)||0;syncTigerpawOverage();updateTigerpawRec()">
+          <span class="calc" id="tpStdHint"></span>
+        </div>
+        <div class="field">
+          <label>Current Number of Field Users</label>
+          <input type="number" id="tp_field" value="${s.tpFieldUsers||''}" min="0" placeholder="e.g. 4"
+                 oninput="s.tpFieldUsers=parseInt(this.value)||0;updateTigerpawRec()">
+          <span class="hint">Included at no additional charge</span>
+        </div>
+      </div>
+
+      <div class="slabel">Renewal Minimum</div>
+      <div class="fg g1">
+        <div class="field">
+          <div id="tpRec" class="callout info" style="display:none;margin:0 0 8px 0"></div>
+          <label>Monthly Minimum ($)</label>
+          <input type="number" id="tp_min" value="${s.tpMin||''}" min="0" step="0.01"
+                 oninput="s.tpMin=parseFloat(this.value)||0;updateTigerpawRec()">
+          <span class="hint">Pre-filled from current charges — override if needed</span>
+        </div>
+      </div>
+
+      <div class="slabel">Additional User Rates</div>
+      <div class="fg g2">
+        <div class="field">
+          <label>Additional Standard User ($/user/mo)</label>
+          <input type="number" id="tp_std_over" value="${s.tpStdOverage}" min="0" step="0.01"
+                 oninput="s.tpStdOverage=parseFloat(this.value)||0;updateTigerpawRec()">
+          <span class="hint">Charged beyond the included count</span>
+        </div>
+        <div class="field">
+          <label>Additional Field User ($/user/mo)</label>
+          <input type="number" id="tp_field_over" value="${s.tpFieldOverage}" min="0" step="0.01"
+                 oninput="s.tpFieldOverage=parseFloat(this.value)||0;updateTigerpawRec()">
+          <span class="hint">Charged beyond the included count</span>
+        </div>
+      </div>
+
+      <div class="slabel">Implementation Fees</div>
+      <div class="fg g2">
+        <div class="field">
+          <label>Standard Setup &amp; Training ($)</label>
+          <input type="number" id="tp_setup" value="${s.setupFee}" min="0" oninput="s.setupFee=parseFloat(this.value)||0">
+        </div>
+        <div class="field">
+          <label>Data Migration ($)</label>
+          <input type="number" id="tp_migration" value="${s.migrationFee}" min="0" oninput="s.migrationFee=parseFloat(this.value)||0">
+        </div>
+      </div>
+    </div>`;
+  return card;
+}
+
+// Current charges carry straight over as the renewal minimum.
+function syncTigerpawMin(){
+  s.tpMin=s.tpCurrentCharges||0;
+  const el=document.getElementById('tp_min');
+  if(el) el.value=s.tpMin||'';
+}
+
+// Additional standard users default to the New Rev.io tier for that headcount.
+function syncTigerpawOverage(){
+  s.tpStdOverage=psaRate(s.tpStdUsers||1);
+  const el=document.getElementById('tp_std_over');
+  if(el) el.value=s.tpStdOverage;
+  const hint=document.getElementById('tpStdHint');
+  if(hint) hint.textContent=s.tpStdUsers>0?psaTierLabel(s.tpStdUsers)+' — $'+s.tpStdOverage+'/user beyond included':'';
+}
+
+function updateTigerpawRec(){
+  const el=document.getElementById('tpRec');
+  if(!el) return;
+  const hint=document.getElementById('tpStdHint');
+  if(hint) hint.textContent=s.tpStdUsers>0?psaTierLabel(s.tpStdUsers)+' — $'+s.tpStdOverage+'/user beyond included':'';
+  if(!s.tpCurrentCharges&&!s.tpMin&&!s.tpStdUsers&&!s.tpFieldUsers){el.style.display='none';return;}
+  el.style.display='block';
+  const users=[];
+  if(s.tpStdUsers>0)users.push(s.tpStdUsers+' Standard');
+  if(s.tpFieldUsers>0)users.push(s.tpFieldUsers+' Field');
+  const drift=s.tpCurrentCharges>0&&s.tpMin!==s.tpCurrentCharges
+    ? `<br><span style="color:var(--text2);font-size:12px">Overridden — current charges are ${fmtDec(s.tpCurrentCharges)}/mo.</span>`
+    : '';
+  el.innerHTML=`<b>Renewal at ${fmtDec(s.tpMin||0)}/mo</b>${users.length?' — '+users.join(' + ')+' users included':' — no users entered yet'}`
+    +`<br><span style="color:var(--text2);font-size:12px">Beyond that: ${fmtDec(s.tpStdOverage||0)}/Standard user/mo · ${fmtDec(s.tpFieldOverage||0)}/Field user/mo.</span>${drift}`;
 }
 
 function buildCombinedCard(){
@@ -20876,6 +21006,15 @@ function updateTierRec(){
 }
 
 // ── Step 6: Review ────────────────────────────────────────────────────────
+function docTypeLabel(){
+  return s.docType==='quote'?'Quote':s.docType==='renewal'?'Renewal':'Contract';
+}
+function productLabel(){
+  return s.products==='psa'?'New Rev.io'
+    :s.products==='tigerpaw'?'Tigerpaw'
+    :s.products==='billing'?'Billing':'Rev.io';
+}
+
 function calcAddonTotal(){
   return REV_OPTIONS.reduce((sum,o)=>sum+(s[o.key]?(s[o.key+'Rate']||0):0),0)+(s.cdrExtra||0)*100;
 }
@@ -20887,10 +21026,23 @@ function buildReview(){
 
   const addonTotal=calcAddonTotal();
 
-  sub.textContent=`${s.company||'Customer'} · ${s.docType==='quote'?'Quote':'Contract'} · ${s.products==='psa'?'New Rev.io':s.products==='billing'?'Billing':'Rev.io'}`;
+  sub.textContent=`${s.company||'Customer'} · ${docTypeLabel()} · ${productLabel()}`;
+
+  // Tigerpaw renewal section
+  if(s.products==='tigerpaw'){
+    const min=s.tpMin||0;
+    html+=`<div class="rev-section"><h4>Tigerpaw Renewal Monthly Fees</h4><table class="rev-tbl">`;
+    html+=`<tr><td>Monthly Minimum (current Tigerpaw charges)</td><td>${fmtDec(min)}/mo</td></tr>`;
+    html+=`<tr><td>Standard Users Included</td><td>${s.tpStdUsers||0}</td></tr>`;
+    html+=`<tr><td>Field Users Included</td><td>${s.tpFieldUsers||0}</td></tr>`;
+    html+=`<tr class="sub"><td colspan="2">Additional Standard Users: ${fmtDec(s.tpStdOverage||0)}/user/mo · Additional Field Users: ${fmtDec(s.tpFieldOverage||0)}/user/mo</td></tr>`;
+    if(s.tpCurrentCharges>0&&min!==s.tpCurrentCharges)
+      html+=`<tr class="sub"><td colspan="2">Overridden — current charges are ${fmtDec(s.tpCurrentCharges)}/mo</td></tr>`;
+    html+=`<tr class="total"><td>Tigerpaw Monthly Total</td><td>${fmtDec(min)}/mo</td></tr></table></div>`;
+  }
 
   // PSA section
-  if(s.products!=='billing'){
+  if(s.products!=='billing'&&s.products!=='tigerpaw'){
     const rate=psaRate(s.stdUsers||1);
     const stdFee=(s.starterPack?7:s.stdUsers)*( s.starterPack?115:rate);
     const fieldFee=(s.starterPack?3:s.fieldUsers)*30;
@@ -20909,7 +21061,7 @@ function buildReview(){
   }
 
   // Billing section
-  if(s.products!=='psa'){
+  if(s.products!=='psa'&&s.products!=='tigerpaw'){
     const addons=REV_OPTIONS.filter(o=>s[o.key]);
     html+=`<div class="rev-section"><h4>Billing Monthly Fees</h4><table class="rev-tbl">`;
     html+=`<tr><td>Monthly Minimum</td><td>${fmt(s.billingMin)}/mo</td></tr>`;
@@ -20932,7 +21084,8 @@ function buildReview(){
 
   // Year 1
   let mo=0;
-  if(s.products==='psa'){const r=psaRate(s.stdUsers||1);mo=Math.max((s.starterPack?7:s.stdUsers)*(s.starterPack?115:r)+(s.starterPack?3:s.fieldUsers)*30,s.starterPack?s.starterMin:s.psaMin);}
+  if(s.products==='tigerpaw'){mo=s.tpMin||0;}
+  else if(s.products==='psa'){const r=psaRate(s.stdUsers||1);mo=Math.max((s.starterPack?7:s.stdUsers)*(s.starterPack?115:r)+(s.starterPack?3:s.fieldUsers)*30,s.starterPack?s.starterMin:s.psaMin);}
   else if(s.products==='billing'){mo=s.billingMin+addonTotal;}
   else{const r=psaRate(s.stdUsers||1);const psaM=Math.max(s.stdUsers*r+s.fieldUsers*30,s.psaMin||1000);mo=Math.max(psaM+s.billingMin+addonTotal,s.combinedMin||1000);}
 
@@ -20977,8 +21130,8 @@ async function generateDoc(){
     const blob=await buildDocx();
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
-    const prod=s.products==='psa'?'New Rev.io':s.products==='billing'?'Billing':'Rev.io';
-    a.href=url;a.download=`${s.company||'RevIO'} - ${prod} ${s.docType==='quote'?'Quote':'Agreement'}.docx`;
+    const noun=s.docType==='quote'?'Quote':s.docType==='renewal'?'Renewal':'Agreement';
+    a.href=url;a.download=`${s.company||'RevIO'} - ${productLabel()} ${noun}.docx`;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     URL.revokeObjectURL(url);
     btn.textContent='✓ Downloaded!';
@@ -21068,7 +21221,7 @@ async function buildDocx(){
       new TableCell({
         width:{size:5800,type:WidthType.DXA},borders:nb(),margins:m(80,80,0,0),
         children:[
-          ...(s.docType!=='quote'?[para([run('SOFTWARE LICENSE AGREEMENT',{bold:true,size:20,color:NAVY})],{alignment:AlignmentType.RIGHT})]:[]),
+          ...(s.docType!=='quote'?[para([run(s.docType==='renewal'?'RENEWAL AGREEMENT':'SOFTWARE LICENSE AGREEMENT',{bold:true,size:20,color:NAVY})],{alignment:AlignmentType.RIGHT})]:[]),
           s.docType==='quote'
             ?para([run('SALES PROPOSAL',{bold:true,size:20,color:NAVY})],{alignment:AlignmentType.RIGHT})
             :para([run(' ')]),
@@ -21180,6 +21333,60 @@ async function buildDocx(){
       )]
     });
     return[secHdr('TERMS & CONDITIONS'),tosT,para([run('')]),sigT];
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // Tigerpaw renewal document
+  // ════════════════════════════════════════════════════════════════════
+  if(s.products==='tigerpaw'){
+    const min=s.tpMin||0;
+
+    const minTable=new Table({
+      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
+      rows:[row(
+        new TableCell({width:{size:7500,type:WidthType.DXA},borders:bot(),shading:{fill:MGREEN,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
+          para([run('MONTHLY MINIMUM',{bold:true,size:13,color:NAVY})]),
+          para([run('Licensee renews at their current Tigerpaw monthly charges.',{size:12,color:MGRAY})]),
+        ]}),
+        new TableCell({width:{size:3300,type:WidthType.DXA},borders:bot(),shading:{fill:MGREEN,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
+          para([run(fmtDec(min)+' / month',{bold:true,size:18,color:NAVY})],{alignment:AlignmentType.RIGHT}),
+        ]}),
+      )]
+    });
+
+    const prodTable=new Table({
+      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,columnWidths:COL4,
+      rows:[
+        row(hc('INCLUDED PRODUCT',COL4[0]),hc('QUANTITY',COL4[1]),hc('ADDITIONAL USER RATE',COL4[2]),hc('TOTAL',COL4[3])),
+        row(
+          cel('Standard Users — '+(s.tpStdUsers||0)+' included',{bold:true,width:COL4[0]}),
+          cel(String(s.tpStdUsers||0),{width:COL4[1],align:AlignmentType.CENTER}),
+          cel(fmtDec(s.tpStdOverage||0)+' / user',{width:COL4[2],align:AlignmentType.CENTER}),
+          cel('Included',{width:COL4[3],align:AlignmentType.RIGHT})
+        ),
+        row(
+          cel('Field Users — '+(s.tpFieldUsers||0)+' included',{bold:true,width:COL4[0]}),
+          cel(String(s.tpFieldUsers||0),{width:COL4[1],align:AlignmentType.CENTER}),
+          cel(fmtDec(s.tpFieldOverage||0)+' / user',{width:COL4[2],align:AlignmentType.CENTER}),
+          cel('Included',{width:COL4[3],align:AlignmentType.RIGHT})
+        ),
+        row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13}),cel(fmtDec(min),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT})),
+      ]
+    });
+
+    const overageNote=para([run(
+      'Users above the included counts are billed monthly in arrears at '+fmtDec(s.tpStdOverage||0)+
+      ' per additional Standard user and '+fmtDec(s.tpFieldOverage||0)+
+      ' per additional Field user. The monthly minimum above is unchanged by additional users.',
+      {size:14,color:MGRAY,italics:true})],{spacing:{before:80,after:160}});
+
+    return Packer.toBlob(new Document({sections:[{...pageProps,children:[
+      hdrTable,para([run('')]),custTable,
+      secHdr('MONTHLY LICENSE FEES'),minTable,para([run('')]),prodTable,
+      secHdr('ADDITIONAL USERS'),overageNote,
+      secHdr('ONE-TIME FEES'),otTable(),
+      ...termsAndSig()
+    ]}]}));
   }
 
   // ════════════════════════════════════════════════════════════════════

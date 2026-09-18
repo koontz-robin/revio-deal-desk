@@ -78,6 +78,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
 .field input,.field select{border:1.5px solid var(--border);border-radius:8px;padding:12px 14px;font-size:15px;color:var(--text);background:var(--surface);transition:border-color .15s;width:100%}
 .field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+.field input[type=date]{color-scheme:dark}
 .field .hint{font-size:12px;color:var(--text3)}
 .field .calc{font-size:12px;color:var(--accent);font-weight:600}
 
@@ -20443,6 +20444,15 @@ const REV_OPTIONS=[
 
 function psaRate(n){for(const t of PSA_TIERS)if(n<=t.max)return t.rate;return 90;}
 function psaTierLabel(n){let i=0;for(const t of PSA_TIERS){if(n<=t.max)return PSA_TIER_LABELS[i];i++;}return '51+ users';}
+// Cards are built with innerHTML, so free-text values need escaping.
+function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// Build from the parts so a yyyy-mm-dd value is not shifted by the time zone.
+function fmtDate(iso){
+  if(!iso)return '';
+  const[y,m,d]=String(iso).split('-').map(Number);
+  if(!y||!m||!d)return String(iso);
+  return new Date(y,m-1,d).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+}
 function fmt(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
 function fmtDec(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
@@ -20491,7 +20501,7 @@ const s={
   netsuite:false,netsuiteRate:250,
   // Tigerpaw renewal — current charges become the minimum, current users are included
   tpCurrentCharges:0,tpMin:0,tpStdUsers:0,tpFieldUsers:0,
-  tpStdOverage:115,tpFieldOverage:30,
+  tpStdOverage:115,tpFieldOverage:30,tpContractEnd:'',
   // Combined
   combinedMin:1000,
 };
@@ -20810,6 +20820,26 @@ function buildTigerpawCard(){
           <input type="number" id="tp_migration" value="${s.migrationFee}" min="0" oninput="s.migrationFee=parseFloat(this.value)||0">
         </div>
       </div>
+
+      <div class="slabel">Client Details</div>
+      <div class="fg g2">
+        <div class="field">
+          <label>Client Name</label>
+          <input type="text" id="tp_client" value="${esc(s.company)}" placeholder="e.g. Acme Services, LLC" oninput="s.company=this.value">
+          <span class="hint">Used on the agreement and the file name</span>
+        </div>
+        <div class="field">
+          <label>Client Contact</label>
+          <input type="text" id="tp_contact" value="${esc(s.contact)}" placeholder="e.g. Dana Reyes" oninput="s.contact=this.value">
+        </div>
+      </div>
+      <div class="fg g1">
+        <div class="field">
+          <label>Existing Contract End Date</label>
+          <input type="date" id="tp_end" value="${esc(s.tpContractEnd)}" oninput="s.tpContractEnd=this.value">
+          <span class="hint">Noted on the renewal agreement</span>
+        </div>
+      </div>
     </div>`;
   return card;
 }
@@ -21053,6 +21083,8 @@ function buildReview(){
     html+=`<tr><td>Standard Users Included</td><td>${s.tpStdUsers||0}</td></tr>`;
     html+=`<tr><td>Field Users Included</td><td>${s.tpFieldUsers||0}</td></tr>`;
     html+=`<tr class="sub"><td colspan="2">Additional Standard Users: ${fmtDec(s.tpStdOverage||0)}/user/mo · Additional Field Users: ${fmtDec(s.tpFieldOverage||0)}/user/mo</td></tr>`;
+    if(s.tpContractEnd)
+      html+=`<tr class="sub"><td colspan="2">Existing contract ends ${fmtDate(s.tpContractEnd)}</td></tr>`;
     if(s.tpCurrentCharges>0&&min!==s.tpCurrentCharges)
       html+=`<tr class="sub"><td colspan="2">Overridden — current charges are ${fmtDec(s.tpCurrentCharges)}/mo</td></tr>`;
     html+=`<tr class="total"><td>Tigerpaw Monthly Total</td><td>${fmtDec(min)}/mo</td></tr></table></div>`;
@@ -21253,6 +21285,8 @@ async function buildDocx(){
   const custFill=LGRAY;
   const lbl=(t)=>para([run(t,{size:11,color:MGRAY,bold:true})]);
   const blank=()=>para([run(' ',{size:16})],{spacing:{after:120}});
+  // Fall back to a blank line to hand-write on when the field was left empty.
+  const val=(t)=>t?para([run(t,{size:14,bold:true,color:DARK})],{spacing:{after:120}}):blank();
 
   const custTable=s.docType==='quote'
     ?new Table({width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,rows:[row(
@@ -21268,8 +21302,8 @@ async function buildDocx(){
         ]})
       )]})
     :new Table({width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,rows:[row(
-        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('COMPANY'),blank(),lbl('SALES REP'),blank()]}),
-        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('CONTACT'),blank(),lbl('DATE'),blank()]}),
+        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('COMPANY'),val(s.company),lbl('SALES REP'),blank()]}),
+        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('CONTACT'),val(s.contact),lbl('DATE'),blank()]}),
         new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('EMAIL'),blank(),lbl('TERM'),para([run(s.term+' months',{size:14,bold:true,color:DARK})],{spacing:{after:120}})]})
       )]});
 
@@ -21397,8 +21431,13 @@ async function buildDocx(){
       ' per additional Field user. The monthly minimum above is unchanged by additional users.',
       {size:14,color:MGRAY,italics:true})],{spacing:{before:80,after:160}});
 
+    const endDateNote=s.tpContractEnd
+      ?[para([run('Existing contract end date: ',{size:14,color:GRAY}),
+              run(fmtDate(s.tpContractEnd),{size:14,color:DARK,bold:true})],{spacing:{before:60,after:60}})]
+      :[];
+
     return Packer.toBlob(new Document({sections:[{...pageProps,children:[
-      hdrTable,para([run('')]),custTable,
+      hdrTable,para([run('')]),custTable,...endDateNote,
       secHdr('MONTHLY LICENSE FEES'),minTable,para([run('')]),prodTable,
       secHdr('ADDITIONAL USERS'),overageNote,
       secHdr('ONE-TIME FEES'),otTable(),

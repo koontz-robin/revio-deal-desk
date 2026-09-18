@@ -197,21 +197,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="card-title">What products are you selling?</div>
       </div>
       <div class="card-body">
-        <div class="opt-grid cols3">
-          <button class="opt-btn" onclick="pick('products','both',this)">
-            <span class="opt-icon">🔗</span>
-            <span class="opt-label">Rev.io</span>
-            <span class="opt-tag">Best Value</span>
-            <span class="opt-desc">Combined agreement, single minimum</span>
-          </button>
+        <div class="opt-grid cols2">
           <button class="opt-btn" onclick="pick('products','psa',this)">
             <span class="opt-icon">🔧</span>
-            <span class="opt-label">New Rev.io Only</span>
+            <span class="opt-label">New Rev.io</span>
             <span class="opt-desc">User-based New Rev.io platform</span>
           </button>
           <button class="opt-btn" onclick="pick('products','billing',this)">
             <span class="opt-icon">💰</span>
-            <span class="opt-label">Billing Only</span>
+            <span class="opt-label">Communications Billing</span>
             <span class="opt-desc">Communications billing platform</span>
           </button>
         </div>
@@ -20425,30 +20419,6 @@ const REV_OPTIONS=[
   {key:'netsuite',       label:'NetSuite',           billingRate:250,  combinedRate:250},
 ];
 
-const RMM_TIERS=[
-  {max:999,   min:250,   rate:2.00},
-  {max:2499,  min:1750,  rate:1.75},
-  {max:4999,  min:4000,  rate:1.60},
-  {max:9999,  min:7750,  rate:1.55},
-  {max:Infinity,min:15000,rate:1.50},
-];
-const EDR_TIERS=[
-  {max:999,   min:150,   rate:1.20},
-  {max:2499,  min:950,   rate:1.00},
-  {max:4999,  min:2250,  rate:0.90},
-  {max:9999,  min:4000,  rate:0.80},
-  {max:Infinity,min:7500, rate:0.75},
-];
-const BACKUP_TIERS=[
-  {tb:1,  min:100,  overage:0.10},
-  {tb:10, min:900,  overage:0.09},
-  {tb:25, min:1750, overage:0.07},
-  {tb:50, min:3000, overage:0.06},
-];
-function rmmTier(n){for(const t of RMM_TIERS)if(n<=t.max)return t;return RMM_TIERS[RMM_TIERS.length-1];}
-function edrTier(n){for(const t of EDR_TIERS)if(n<=t.max)return t;return EDR_TIERS[EDR_TIERS.length-1];}
-function backupTier(tb){let r=BACKUP_TIERS[0];for(const t of BACKUP_TIERS)if(tb>=t.tb)r=t;return r;}
-
 function psaRate(n){for(const t of PSA_TIERS)if(n<=t.max)return t.rate;return 90;}
 function psaTierLabel(n){let i=0;for(const t of PSA_TIERS){if(n<=t.max)return PSA_TIER_LABELS[i];i++;}return '51+ users';}
 function fmt(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
@@ -20489,10 +20459,6 @@ const s={
   billingVolume:0,billingMin:1000,billingRate:2.50,billingTier:'startup',
   cdrFormats:0,cdrExtra:0,cdrStorage:'18mo',
   // Rev.io options (enabled flag + rate)
-  // Cyber Protect
-  rmm:false,rmmEndpoints:0,rmmRate:2.00,rmmMin:250,
-  edr:false,edrEndpoints:0,edrRate:1.20,edrMin:150,
-  cloudBackup:false,cloudBackupTb:1,cloudBackupRate:0.10,cloudBackupMin:100,
   // Rev.io Options
   agentBundle:false,agentBundleRate:500,
   enterprisePortal:false,enterprisePortalRate:1000,
@@ -20571,7 +20537,7 @@ function buildStep5(){
     const _addons=REV_OPTIONS.reduce((sum,o)=>sum+(s[o.key]?(s[o.key+'Rate']||0):0),0);
     const _rec=Math.ceil((_psaFee+_billingFee+_addons)/50)*50;
     if(_rec>0) s.combinedMin=_rec;
-    inner.appendChild(buildCyberCard());
+    inner.appendChild(buildCombinedCard());
     setTimeout(updateCombinedMin,0);
   }
 }
@@ -20632,71 +20598,6 @@ function buildPsaCard(){
           </div>
         </div>
       `}
-      ${s.products!=='both'?`
-      <div class="slabel">Cyber Protect Add-ons</div>
-
-      <div class="tog-row">
-        <label class="toggle-sw"><input type="checkbox" ${s.rmm?'checked':''} onchange="s.rmm=this.checked;document.getElementById('rmm_fields').style.display=this.checked?'block':'none';updateCyberRec()"><span class="toggle-track"></span></label>
-        <div class="tog-label"><div class="tl">Rev.io RMM</div><div class="td">Remote Monitoring & Management — endpoint tiered pricing</div></div>
-      </div>
-      <div id="rmm_fields" style="display:${s.rmm?'block':'none'};padding:12px 0 4px 54px">
-        <div class="fg g2">
-          <div class="field">
-            <label>Number of Endpoints</label>
-            <input type="number" value="${s.rmmEndpoints||''}" min="0" placeholder="e.g. 500" oninput="s.rmmEndpoints=parseInt(this.value)||0;updateCyberRec()">
-            <span class="calc" id="rmm_fee">${s.rmmEndpoints>0?'Min: '+fmt(rmmTier(s.rmmEndpoints).min)+' / '+fmt(rmmTier(s.rmmEndpoints).rate)+'/endpoint':''}</span>
-          </div>
-          <div class="field">
-            <label>Rate Override ($/endpoint)</label>
-            <input type="number" id="rmm_rate" value="${s.rmmRate}" min="0" step="0.01" oninput="s.rmmRate=parseFloat(this.value)||0">
-          </div>
-        </div>
-      </div>
-
-      <div class="tog-row">
-        <label class="toggle-sw"><input type="checkbox" ${s.edr?'checked':''} onchange="s.edr=this.checked;document.getElementById('edr_fields').style.display=this.checked?'block':'none';updateCyberRec()"><span class="toggle-track"></span></label>
-        <div class="tog-label"><div class="tl">Rev.io EDR</div><div class="td">Endpoint Detection & Response — endpoint tiered pricing</div></div>
-      </div>
-      <div id="edr_fields" style="display:${s.edr?'block':'none'};padding:12px 0 4px 54px">
-        <div class="fg g2">
-          <div class="field">
-            <label>Number of Endpoints</label>
-            <input type="number" value="${s.edrEndpoints||''}" min="0" placeholder="e.g. 500" oninput="s.edrEndpoints=parseInt(this.value)||0;updateCyberRec()">
-            <span class="calc" id="edr_fee">${s.edrEndpoints>0?'Min: '+fmt(edrTier(s.edrEndpoints).min)+' / '+fmt(edrTier(s.edrEndpoints).rate)+'/endpoint':''}</span>
-          </div>
-          <div class="field">
-            <label>Rate Override ($/endpoint)</label>
-            <input type="number" id="edr_rate" value="${s.edrRate}" min="0" step="0.01" oninput="s.edrRate=parseFloat(this.value)||0">
-          </div>
-        </div>
-      </div>
-
-      <div class="tog-row">
-        <label class="toggle-sw"><input type="checkbox" ${s.cloudBackup?'checked':''} onchange="s.cloudBackup=this.checked;document.getElementById('backup_fields').style.display=this.checked?'block':'none';updateCyberRec()"><span class="toggle-track"></span></label>
-        <div class="tog-label"><div class="tl">Rev.io Cloud Backup</div><div class="td">Cloud backup storage — TB tier + GB overage</div></div>
-      </div>
-      <div id="backup_fields" style="display:${s.cloudBackup?'block':'none'};padding:12px 0 4px 54px">
-        <div class="fg g2">
-          <div class="field">
-            <label>Storage Tier (TB)</label>
-            <select oninput="s.cloudBackupTb=parseInt(this.value)||1;updateCyberRec()">
-              <option value="1" ${s.cloudBackupTb===1?'selected':''}>1 TB — $100/mo min</option>
-              <option value="10" ${s.cloudBackupTb===10?'selected':''}>10 TBs — $900/mo min</option>
-              <option value="25" ${s.cloudBackupTb===25?'selected':''}>25 TBs — $1,750/mo min</option>
-              <option value="50" ${s.cloudBackupTb===50?'selected':''}>50 TBs — $3,000/mo min</option>
-            </select>
-            <span class="calc" id="backup_fee">${fmt(backupTier(s.cloudBackupTb).min)+'/mo min'}</span>
-          </div>
-          <div class="field">
-            <label>Overage Rate Override ($/GB)</label>
-            <input type="number" id="backup_rate" value="${s.cloudBackupRate}" min="0" step="0.01" oninput="s.cloudBackupRate=parseFloat(this.value)||0">
-          </div>
-        </div>
-      </div>
-
-      ${s.starterPack?'<div id="cyberTotalCallout" class="callout accent" style="display:none;margin-top:4px"></div>':''}
-      `:''}
-
       <div class="slabel">Implementation Fees</div>
       <div class="fg g2">
         <div class="field">
@@ -20719,63 +20620,15 @@ function updatePsaHint(){
   updatePsaRec();
 }
 
-function cyberFees(){
-  const rmmFee=s.rmm?Math.max(s.rmmMin||0,(s.rmmEndpoints||0)*(s.rmmRate||0)):0;
-  const edrFee=s.edr?Math.max(s.edrMin||0,(s.edrEndpoints||0)*(s.edrRate||0)):0;
-  const backupFee=s.cloudBackup?(s.cloudBackupMin||0):0;
-  return rmmFee+edrFee+backupFee;
-}
 function calcPsaFee(){
   if(s.starterPack){
-    return (s.starterMin||750)+cyberFees();
+    return (s.starterMin||750);
   }
   const std=s.stdUsers||0,field=s.fieldUsers||0;
   const rate=psaRate(std||1);
   const base=std*rate+field*30;
-  return Math.ceil((base+cyberFees())/50)*50;
+  return Math.ceil(base/50)*50;
 }
-function updateCyberRec(){
-  // RMM
-  function setEls(ids,text,val){ids.forEach(id=>{const el=document.getElementById(id);if(el){if(el.tagName==='INPUT')el.value=val;else el.textContent=text;}});}
-  if(s.rmm&&s.rmmEndpoints>0){
-    const t=rmmTier(s.rmmEndpoints);
-    s.rmmRate=t.rate; s.rmmMin=t.min;
-    setEls(['rmm_fee','rmm_fee_c'],'Min: '+fmt(t.min)+' / $'+t.rate+'/endpoint',null);
-    setEls(['rmm_rate','rmm_rate_c'],null,t.rate);
-  }
-  if(s.edr&&s.edrEndpoints>0){
-    const t=edrTier(s.edrEndpoints);
-    s.edrRate=t.rate; s.edrMin=t.min;
-    setEls(['edr_fee','edr_fee_c'],'Min: '+fmt(t.min)+' / $'+t.rate+'/endpoint',null);
-    setEls(['edr_rate','edr_rate_c'],null,t.rate);
-  }
-  if(s.cloudBackup&&s.cloudBackupTb>0){
-    const t=backupTier(s.cloudBackupTb);
-    s.cloudBackupRate=t.overage; s.cloudBackupMin=t.min;
-    setEls(['backup_fee','backup_fee_c'],fmt(t.min)+'/mo min',null);
-    setEls(['backup_rate','backup_rate_c'],null,t.overage);
-  }
-  // Show running total callout for starter pack
-  const totalEl=document.getElementById('cyberTotalCallout');
-  if(totalEl&&s.starterPack){
-    const cyber=cyberFees();
-    const base=s.starterMin||750;
-    const total=base+cyber;
-    if(cyber>0){
-      totalEl.style.display='block';
-      const parts=[];
-      if(s.rmm){const f=Math.max(s.rmmMin||0,(s.rmmEndpoints||0)*(s.rmmRate||0));parts.push('RMM '+fmt(f));}
-      if(s.edr){const f=Math.max(s.edrMin||0,(s.edrEndpoints||0)*(s.edrRate||0));parts.push('EDR '+fmt(f));}
-      if(s.cloudBackup)parts.push('Cloud Backup '+fmt(s.cloudBackupMin||0));
-      const arrow=total>=1000?'<span style="color:#22C55E;font-weight:700"> ✓ Meets $1,000 minimum</span>':'<span style="color:var(--text2)"> ('+(fmt(1000-total))+' short of $1,000)</span>';
-      totalEl.innerHTML=`<b>Starter Pack ${fmt(base)} + ${parts.join(' + ')} = ${fmt(total)}/mo</b>${arrow}`;
-    } else {
-      totalEl.style.display='none';
-    }
-  }
-  updatePsaRec();
-}
-
 function updatePsaRec(){
   const recEl=document.getElementById('psaMinRec');
   if(!recEl) return;
@@ -20813,82 +20666,21 @@ function updateCombinedMin(){
   recEl.innerHTML=`<b>Suggested Combined Minimum: ${fmt(rec)}/mo</b>${parts.length?' — '+parts.join(' + '):''}<br><span style="color:var(--text2);font-size:12px">Updates as you adjust New Rev.io and Billing fields above.</span>`;
 }
 
-function buildCyberCard(){
+function buildCombinedCard(){
   const card=document.createElement('div');
   card.className='card';
   card.innerHTML=`
     <div class="card-head">
-      <div class="card-title">Cyber Protect &amp; Combined Minimum</div>
+      <div class="card-title">Combined Minimum</div>
     </div>
     <div class="card-body">
-      <div class="slabel">Cyber Protect Add-ons</div>
-
-      <div class="tog-row">
-        <label class="toggle-sw"><input type="checkbox" ${s.rmm?'checked':''} onchange="s.rmm=this.checked;document.getElementById('rmm_fields_c').style.display=this.checked?'block':'none';updateCyberRec()"><span class="toggle-track"></span></label>
-        <div class="tog-label"><div class="tl">Rev.io RMM</div><div class="td">Remote Monitoring & Management — endpoint tiered pricing</div></div>
-      </div>
-      <div id="rmm_fields_c" style="display:${s.rmm?'block':'none'};padding:12px 0 4px 54px">
-        <div class="fg g2">
-          <div class="field">
-            <label>Number of Endpoints</label>
-            <input type="number" value="${s.rmmEndpoints||''}" min="0" placeholder="e.g. 500" oninput="s.rmmEndpoints=parseInt(this.value)||0;updateCyberRec()">
-            <span class="calc" id="rmm_fee_c">${s.rmmEndpoints>0?'Min: '+fmt(rmmTier(s.rmmEndpoints).min)+' / $'+rmmTier(s.rmmEndpoints).rate+'/endpoint':''}</span>
-          </div>
-          <div class="field">
-            <label>Rate Override ($/endpoint)</label>
-            <input type="number" id="rmm_rate_c" value="${s.rmmRate}" min="0" step="0.01" oninput="s.rmmRate=parseFloat(this.value)||0;updateCombinedMin()">
-          </div>
-        </div>
-      </div>
-
-      <div class="tog-row">
-        <label class="toggle-sw"><input type="checkbox" ${s.edr?'checked':''} onchange="s.edr=this.checked;document.getElementById('edr_fields_c').style.display=this.checked?'block':'none';updateCyberRec()"><span class="toggle-track"></span></label>
-        <div class="tog-label"><div class="tl">Rev.io EDR</div><div class="td">Endpoint Detection & Response — endpoint tiered pricing</div></div>
-      </div>
-      <div id="edr_fields_c" style="display:${s.edr?'block':'none'};padding:12px 0 4px 54px">
-        <div class="fg g2">
-          <div class="field">
-            <label>Number of Endpoints</label>
-            <input type="number" value="${s.edrEndpoints||''}" min="0" placeholder="e.g. 500" oninput="s.edrEndpoints=parseInt(this.value)||0;updateCyberRec()">
-            <span class="calc" id="edr_fee_c">${s.edrEndpoints>0?'Min: '+fmt(edrTier(s.edrEndpoints).min)+' / $'+edrTier(s.edrEndpoints).rate+'/endpoint':''}</span>
-          </div>
-          <div class="field">
-            <label>Rate Override ($/endpoint)</label>
-            <input type="number" id="edr_rate_c" value="${s.edrRate}" min="0" step="0.01" oninput="s.edrRate=parseFloat(this.value)||0;updateCombinedMin()">
-          </div>
-        </div>
-      </div>
-
-      <div class="tog-row">
-        <label class="toggle-sw"><input type="checkbox" ${s.cloudBackup?'checked':''} onchange="s.cloudBackup=this.checked;document.getElementById('backup_fields_c').style.display=this.checked?'block':'none';updateCyberRec()"><span class="toggle-track"></span></label>
-        <div class="tog-label"><div class="tl">Rev.io Cloud Backup</div><div class="td">Cloud backup storage — TB tier + GB overage</div></div>
-      </div>
-      <div id="backup_fields_c" style="display:${s.cloudBackup?'block':'none'};padding:12px 0 4px 54px">
-        <div class="fg g2">
-          <div class="field">
-            <label>Storage Tier (TB)</label>
-            <select oninput="s.cloudBackupTb=parseInt(this.value)||1;updateCyberRec()">
-              <option value="1" ${s.cloudBackupTb===1?'selected':''}>1 TB — $100/mo min</option>
-              <option value="10" ${s.cloudBackupTb===10?'selected':''}>10 TBs — $900/mo min</option>
-              <option value="25" ${s.cloudBackupTb===25?'selected':''}>25 TBs — $1,750/mo min</option>
-              <option value="50" ${s.cloudBackupTb===50?'selected':''}>50 TBs — $3,000/mo min</option>
-            </select>
-            <span class="calc" id="backup_fee_c">${fmt(backupTier(s.cloudBackupTb).min)+'/mo min'}</span>
-          </div>
-          <div class="field">
-            <label>Overage Rate Override ($/GB)</label>
-            <input type="number" id="backup_rate_c" value="${s.cloudBackupRate}" min="0" step="0.01" oninput="s.cloudBackupRate=parseFloat(this.value)||0;updateCombinedMin()">
-          </div>
-        </div>
-      </div>
-
       <div class="slabel">Combined Monthly Minimum</div>
       <div class="fg g1">
         <div class="field">
           <div id="combinedMinRec" class="callout info" style="display:none;margin:0 0 8px 0"></div>
           <label>Combined Monthly Minimum ($)</label>
           <input type="number" id="combined_min_input" value="${s.combinedMin}" min="0" oninput="s.combinedMin=parseFloat(this.value)||0">
-          <span class="hint">New Rev.io + Billing + Cyber Protect — override if needed</span>
+          <span class="hint">New Rev.io + Billing — override if needed</span>
         </div>
       </div>
     </div>`;
@@ -21051,11 +20843,7 @@ function updateTierRec(){
 
 // ── Step 6: Review ────────────────────────────────────────────────────────
 function calcAddonTotal(){
-  const revio=REV_OPTIONS.reduce((sum,o)=>sum+(s[o.key]?(s[o.key+'Rate']||0):0),0)+(s.cdrExtra||0)*100;
-  const rmmFee=s.rmm?Math.max(s.rmmMin||0,(s.rmmEndpoints||0)*(s.rmmRate||0)):0;
-  const edrFee=s.edr?Math.max(s.edrMin||0,(s.edrEndpoints||0)*(s.edrRate||0)):0;
-  const backupFee=s.cloudBackup?(s.cloudBackupMin||0):0;
-  return revio+rmmFee+edrFee+backupFee;
+  return REV_OPTIONS.reduce((sum,o)=>sum+(s[o.key]?(s[o.key+'Rate']||0):0),0)+(s.cdrExtra||0)*100;
 }
 
 function buildReview(){
@@ -21294,18 +21082,6 @@ async function buildDocx(){
       if(s.fieldUsers)rows.push(row(cel('Field Users',{bold:true}),cel(String(s.fieldUsers),{align:AlignmentType.CENTER}),cel('0 / user',{align:AlignmentType.CENTER}),cel(fmt(s.fieldUsers*30),{align:AlignmentType.RIGHT})));
       if(s.reviiCredits)rows.push(row(cel('Rev.ii Credits',{bold:true}),cel(s.reviiCredits.toLocaleString(),{align:AlignmentType.CENTER}),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
     }
-    // Cyber Protect
-    if(s.rmm){
-      const fee=Math.max(s.rmmMin||0,(s.rmmEndpoints||0)*(s.rmmRate||0));
-      rows.push(row(cel('Rev.io RMM',{bold:true}),cel(String(s.rmmEndpoints||0)+' endpoints',{align:AlignmentType.CENTER}),cel('$'+(s.rmmRate||0).toFixed(2)+'/endpoint',{align:AlignmentType.CENTER}),cel(fmt(fee),{align:AlignmentType.RIGHT})));
-    }
-    if(s.edr){
-      const fee=Math.max(s.edrMin||0,(s.edrEndpoints||0)*(s.edrRate||0));
-      rows.push(row(cel('Rev.io EDR',{bold:true}),cel(String(s.edrEndpoints||0)+' endpoints',{align:AlignmentType.CENTER}),cel('$'+(s.edrRate||0).toFixed(2)+'/endpoint',{align:AlignmentType.CENTER}),cel(fmt(fee),{align:AlignmentType.RIGHT})));
-    }
-    if(s.cloudBackup){
-      rows.push(row(cel('Rev.io Cloud Backup',{bold:true}),cel(s.cloudBackupTb+' TB tier',{align:AlignmentType.CENTER}),cel('$'+(s.cloudBackupRate||0).toFixed(2)+'/GB overage',{align:AlignmentType.CENTER}),cel(fmt(s.cloudBackupMin||0)+'/mo',{align:AlignmentType.RIGHT})));
-    }
     return rows;
   }
 
@@ -21377,17 +21153,13 @@ async function buildDocx(){
   // ════════════════════════════════════════════════════════════════════
   if(s.products==='psa'){
     const rate=psaRate(s.stdUsers||1);
-    const rmmFeeDoc=s.rmm?Math.max(s.rmmMin||0,(s.rmmEndpoints||0)*(s.rmmRate||0)):0;
-    const edrFeeDoc=s.edr?Math.max(s.edrMin||0,(s.edrEndpoints||0)*(s.edrRate||0)):0;
-    const backupFeeDoc=s.cloudBackup?(s.cloudBackupMin||0):0;
-    const cyberTotal=rmmFeeDoc+edrFeeDoc+backupFeeDoc;
     let subtotal;
     if(s.starterPack){
-      subtotal=(s.starterMin||750)+cyberTotal;
+      subtotal=(s.starterMin||750);
     } else {
       const stdFee=(s.stdUsers||0)*rate;
       const fieldFee=(s.fieldUsers||0)*30;
-      subtotal=Math.max(stdFee+fieldFee+cyberTotal,s.psaMin||1000);
+      subtotal=Math.max(stdFee+fieldFee,s.psaMin||1000);
     }
 
     const minTable=new Table({
@@ -21511,14 +21283,10 @@ async function buildDocx(){
   // ════════════════════════════════════════════════════════════════════
   if(s.products==='both'){
     const rate=psaRate(s.stdUsers||1);
-    const rmmFeeC=s.rmm?Math.max(s.rmmMin||0,(s.rmmEndpoints||0)*(s.rmmRate||0)):0;
-    const edrFeeC=s.edr?Math.max(s.edrMin||0,(s.edrEndpoints||0)*(s.edrRate||0)):0;
-    const backupFeeC=s.cloudBackup?(s.cloudBackupMin||0):0;
-    const cyberTotalC=rmmFeeC+edrFeeC+backupFeeC;
     const psaBase=s.starterPack?(s.starterMin||750):Math.max((s.stdUsers||0)*rate+(s.fieldUsers||0)*30,s.psaMin||1000);
     const enabledOpts=REV_OPTIONS.filter(o=>s[o.key]);
     const addonTotal=enabledOpts.reduce((sum,o)=>sum+(s[o.key+'Rate']||0),0)+(s.cdrExtra||0)*100;
-    const subtotal=Math.max(psaBase+cyberTotalC+(s.billingMin||0)+addonTotal,s.combinedMin||1000);
+    const subtotal=Math.max(psaBase+(s.billingMin||0)+addonTotal,s.combinedMin||1000);
 
     const minTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,

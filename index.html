@@ -214,13 +214,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="card-title">What products are you selling?</div>
       </div>
       <div class="card-body">
-        <div class="opt-grid cols3">
+        <div class="opt-grid cols2" id="productGrid">
           <button class="opt-btn" onclick="pick('products','psa',this)">
             <span class="opt-icon">🔧</span>
             <span class="opt-label">New Rev.io</span>
             <span class="opt-desc">User-based New Rev.io platform</span>
           </button>
-          <button class="opt-btn" onclick="pick('products','tigerpaw',this)">
+          <button class="opt-btn" id="optTigerpaw" style="display:none" onclick="pick('products','tigerpaw',this)">
             <span class="opt-icon">🐯</span>
             <span class="opt-label">Tigerpaw</span>
             <span class="opt-desc">Renewal at the client's current Tigerpaw minimum</span>
@@ -20546,7 +20546,24 @@ function startOver(){
   showStep(1);
 }
 
+// Tigerpaw is a renewal-only product, so Step 2 depends on the Step 1 choice.
+function updateProductOptions(){
+  const grid=document.getElementById('productGrid');
+  const btn=document.getElementById('optTigerpaw');
+  if(!grid||!btn) return;
+  const isRenewal=s.docType==='renewal';
+  btn.style.display=isRenewal?'':'none';
+  grid.classList.toggle('cols3',isRenewal);
+  grid.classList.toggle('cols2',!isRenewal);
+  // Drop a Tigerpaw selection if the doc type moved away from renewal.
+  if(!isRenewal&&s.products==='tigerpaw'){
+    s.products=null;
+    grid.querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('sel'));
+  }
+}
+
 function showStep(n){
+  if(n===2)updateProductOptions();
   document.querySelectorAll('.step').forEach(el=>el.classList.remove('active'));
   document.getElementById('step'+n).classList.add('active');
   cur=n;

@@ -21376,13 +21376,13 @@ async function buildDocx(){
       rows:[
         row(hc('INCLUDED PRODUCT',COL4[0]),hc('QUANTITY',COL4[1]),hc('ADDITIONAL USER RATE',COL4[2]),hc('TOTAL',COL4[3])),
         row(
-          cel('Standard Users — '+(s.tpStdUsers||0)+' included',{bold:true,width:COL4[0]}),
+          cel('Standard Users',{bold:true,width:COL4[0]}),
           cel(String(s.tpStdUsers||0),{width:COL4[1],align:AlignmentType.CENTER}),
           cel(fmtDec(s.tpStdOverage||0)+' / user',{width:COL4[2],align:AlignmentType.CENTER}),
           cel('Included',{width:COL4[3],align:AlignmentType.RIGHT})
         ),
         row(
-          cel('Field Users — '+(s.tpFieldUsers||0)+' included',{bold:true,width:COL4[0]}),
+          cel('Field Users',{bold:true,width:COL4[0]}),
           cel(String(s.tpFieldUsers||0),{width:COL4[1],align:AlignmentType.CENTER}),
           cel(fmtDec(s.tpFieldOverage||0)+' / user',{width:COL4[2],align:AlignmentType.CENTER}),
           cel('Included',{width:COL4[3],align:AlignmentType.RIGHT})

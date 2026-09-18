@@ -206,8 +206,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           </button>
           <button class="opt-btn" onclick="pick('products','psa',this)">
             <span class="opt-icon">🔧</span>
-            <span class="opt-label">PSA Only</span>
-            <span class="opt-desc">User-based PSA platform</span>
+            <span class="opt-label">New Rev.io Only</span>
+            <span class="opt-desc">User-based New Rev.io platform</span>
           </button>
           <button class="opt-btn" onclick="pick('products','billing',this)">
             <span class="opt-icon">💰</span>
@@ -20583,7 +20583,7 @@ function buildPsaCard(){
   card.innerHTML=`
     <div class="card-head">
       <div class="card-step">Step 4 of 5</div>
-      <div class="card-title">${isPsa?'PSA Configuration':'PSA — Part of Combined Agreement'}</div>
+      <div class="card-title">${isPsa?'New Rev.io Configuration':'New Rev.io — Part of Combined Agreement'}</div>
     </div>
     <div class="card-body">
       ${s.starterPack?`
@@ -20786,7 +20786,7 @@ function updatePsaRec(){
     const calc=std*rate+field*30;
     const rec=Math.ceil(calc/50)*50;
     recEl.style.display='block';
-    recEl.innerHTML=`<b>Recommended PSA Minimum: ${fmt(rec)}/mo</b> — ${std>0?std+' std × $'+rate:''}${std>0&&field>0?' + ':''}${field>0?field+' field × $30':''} = ${fmt(calc)}${rec>calc?' (rounded to nearest $50)':''}<br><span style="color:var(--text2);font-size:12px">Pre-filling below — override if needed.</span>`;
+    recEl.innerHTML=`<b>Recommended New Rev.io Minimum: ${fmt(rec)}/mo</b> — ${std>0?std+' std × $'+rate:''}${std>0&&field>0?' + ':''}${field>0?field+' field × $30':''} = ${fmt(calc)}${rec>calc?' (rounded to nearest $50)':''}<br><span style="color:var(--text2);font-size:12px">Pre-filling below — override if needed.</span>`;
     s.psaMin=rec;
     const minIn=document.getElementById('psa_min_input');
     if(minIn) minIn.value=rec;
@@ -20807,10 +20807,10 @@ function updateCombinedMin(){
   if(combIn) combIn.value=rec;
   recEl.style.display='block';
   const parts=[];
-  if(psaFee>0) parts.push(`PSA ${fmt(psaFee)}`);
+  if(psaFee>0) parts.push(`New Rev.io ${fmt(psaFee)}`);
   if(billingFee>0) parts.push(`Billing ${fmt(billingFee)}`);
   if(addons>0) parts.push(`Add-ons ${fmt(addons)}`);
-  recEl.innerHTML=`<b>Suggested Combined Minimum: ${fmt(rec)}/mo</b>${parts.length?' — '+parts.join(' + '):''}<br><span style="color:var(--text2);font-size:12px">Updates as you adjust PSA and Billing fields above.</span>`;
+  recEl.innerHTML=`<b>Suggested Combined Minimum: ${fmt(rec)}/mo</b>${parts.length?' — '+parts.join(' + '):''}<br><span style="color:var(--text2);font-size:12px">Updates as you adjust New Rev.io and Billing fields above.</span>`;
 }
 
 function buildCyberCard(){
@@ -20888,7 +20888,7 @@ function buildCyberCard(){
           <div id="combinedMinRec" class="callout info" style="display:none;margin:0 0 8px 0"></div>
           <label>Combined Monthly Minimum ($)</label>
           <input type="number" id="combined_min_input" value="${s.combinedMin}" min="0" oninput="s.combinedMin=parseFloat(this.value)||0">
-          <span class="hint">PSA + Billing + Cyber Protect — override if needed</span>
+          <span class="hint">New Rev.io + Billing + Cyber Protect — override if needed</span>
         </div>
       </div>
     </div>`;
@@ -21006,7 +21006,7 @@ function buildBillingCard(){
             <label>Combined Monthly Minimum ($)</label>
             <div id="psaMinRec" class="callout info" style="display:none;margin:0 0 8px 0"></div>
             <input type="number" id="combined_min_input" value="${s.combinedMin}" min="0" oninput="s.combinedMin=parseFloat(this.value)||0">
-            <span class="hint">PSA + Billing fees — override if needed</span>
+            <span class="hint">New Rev.io + Billing fees — override if needed</span>
           </div>
         </div>
       `:''}
@@ -21065,7 +21065,7 @@ function buildReview(){
 
   const addonTotal=calcAddonTotal();
 
-  sub.textContent=`${s.company||'Customer'} · ${s.docType==='quote'?'Quote':'Contract'} · ${s.products==='psa'?'PSA':s.products==='billing'?'Billing':'Rev.io'}`;
+  sub.textContent=`${s.company||'Customer'} · ${s.docType==='quote'?'Quote':'Contract'} · ${s.products==='psa'?'New Rev.io':s.products==='billing'?'Billing':'Rev.io'}`;
 
   // PSA section
   if(s.products!=='billing'){
@@ -21074,7 +21074,7 @@ function buildReview(){
     const fieldFee=(s.starterPack?3:s.fieldUsers)*30;
     const min=s.starterPack?s.starterMin:(s.products==='psa'?s.psaMin:s.psaMin);
     const psaTotal=Math.max(stdFee+fieldFee,min);
-    html+=`<div class="rev-section"><h4>PSA Monthly Fees</h4><table class="rev-tbl">`;
+    html+=`<div class="rev-section"><h4>New Rev.io Monthly Fees</h4><table class="rev-tbl">`;
     if(s.starterPack){
       html+=`<tr><td>Starter Pack (7 Std + 3 Field + 15K Rev.ii Credits)</td><td>${fmt(psaTotal)}/mo</td></tr>`;
     }else{
@@ -21083,7 +21083,7 @@ function buildReview(){
       if(s.reviiCredits)html+=`<tr class="sub"><td colspan="2">Rev.ii Credits: ${s.reviiCredits.toLocaleString()} included · $0.01/credit overage</td></tr>`;
       html+=`<tr class="sub"><td colspan="2">Minimum: ${fmt(min)}/mo</td></tr>`;
     }
-    html+=`<tr class="total"><td>PSA Monthly Total</td><td>${fmt(psaTotal)}/mo</td></tr></table></div>`;
+    html+=`<tr class="total"><td>New Rev.io Monthly Total</td><td>${fmt(psaTotal)}/mo</td></tr></table></div>`;
   }
 
   // Billing section
@@ -21155,7 +21155,7 @@ async function generateDoc(){
     const blob=await buildDocx();
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
-    const prod=s.products==='psa'?'PSA':s.products==='billing'?'Billing':'Rev.io';
+    const prod=s.products==='psa'?'New Rev.io':s.products==='billing'?'Billing':'Rev.io';
     a.href=url;a.download=`${s.company||'RevIO'} - ${prod} ${s.docType==='quote'?'Quote':'Agreement'}.docx`;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     URL.revokeObjectURL(url);

@@ -21360,10 +21360,14 @@ async function buildDocx(){
   function termsAndSig(){
     if(s.docType==='quote')return[];
     const tos='By signing below, Licensee acknowledges and agrees to the Rev.io Terms of Service available here: https://act.rev.io/rev.io-terms-conditions. This Software License Agreement, which collectively includes Rev.io Terms of Service, Schedule A: Terms & Conditions, Schedule B: Licensed Products and System Requirements, and any addendums thereto, is made between Rev.io, LLC and Licensee.';
+    const overage='Any usage, users, or other quantities in excess of the amounts included above shall be billed monthly in arrears at the rates stated in this agreement.';
     const tosT=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
       rows:[row(
-        new TableCell({borders:bot(),margins:m(300,300,200,200),children:[para([run(tos,{size:14,color:GRAY})])]})
+        new TableCell({borders:bot(),margins:m(300,300,200,200),children:[
+          para([run(tos,{size:14,color:GRAY})]),
+          para([run(overage,{size:14,color:GRAY})],{spacing:{before:140}}),
+        ]})
       )]
     });
     const sigT=new Table({

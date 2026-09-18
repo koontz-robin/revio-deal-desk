@@ -138,6 +138,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-gen:hover{background:var(--accent-h)}
 .btn-gen:disabled{opacity:.6;cursor:not-allowed}
 
+/* Top nav */
+.top-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.btn-sm{padding:8px 16px;font-size:13px;border-radius:7px}
+.btn-sm:disabled{opacity:.35;cursor:not-allowed}
+.btn-back:disabled:hover{border-color:var(--border);color:var(--text2)}
+.btn-reset{background:transparent;color:var(--text3);border:1.5px solid transparent}
+.btn-reset:hover{color:var(--text2);border-color:var(--border)}
+
 /* Step visibility */
 .step{display:none}.step.active{display:block;animation:fi .18s ease}
 @keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
@@ -162,6 +170,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
 
 <div class="wrap">
+  <div class="top-nav">
+    <button class="btn btn-back btn-sm" id="topBack" onclick="go(-1)">← Back</button>
+    <button class="btn btn-reset btn-sm" id="topStartOver" onclick="startOver()">↺ Start Over</button>
+  </div>
   <div class="step-dots" id="stepDots"></div>
 
   <!-- Step 1: Quote or Contract -->
@@ -263,7 +275,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;background:var(--surface);border:1px dashed var(--border);border-radius:8px;padding:10px 18px;font-size:13px;color:var(--muted);transition:border-color .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Upload Logo
-            <input type="file" accept="image/*" style="display:none" onchange="handleProspectLogo(this)">
+            <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleProspectLogo(this)">
           </label>
           <div id="logoPreview" style="display:none;align-items:center;gap:10px;">
             <img id="logoImg" style="max-height:36px;max-width:140px;object-fit:contain;border-radius:4px;background:#fff;padding:4px 8px;" />
@@ -20471,6 +20483,9 @@ const s={
   combinedMin:1000,
 };
 
+// Pristine copy of the defaults above, for Start Over.
+const INITIAL_STATE=JSON.parse(JSON.stringify(s));
+
 // ── Navigation ───────────────────────────────────────────────────────────
 let cur=1;
 const TOTAL=5;
@@ -20497,10 +20512,29 @@ function go(from){
   showStep(next);
 }
 
+function startOver(){
+  if((cur>1||s.docType)&&!confirm('Start over? This clears everything you have entered.'))return;
+
+  // Reset state back to the defaults captured at load.
+  Object.assign(s,JSON.parse(JSON.stringify(INITIAL_STATE)));
+  s.date=new Date().toISOString().split('T')[0];
+
+  // Clear selections on the static steps; steps 4 and 5 are rebuilt on entry.
+  document.querySelectorAll('.opt-btn.sel,.storage-btn.sel').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('step5inner').innerHTML='';
+  document.getElementById('revBody').innerHTML='';
+  document.getElementById('revSub').textContent='';
+  clearProspectLogo();
+  document.getElementById('logoInput').value='';
+
+  showStep(1);
+}
+
 function showStep(n){
   document.querySelectorAll('.step').forEach(el=>el.classList.remove('active'));
   document.getElementById('step'+n).classList.add('active');
   cur=n;
+  document.getElementById('topBack').disabled=(n===1);
   renderDots();
   document.getElementById('progFill').style.width=(n/TOTAL*100)+'%';
   window.scrollTo({top:0,behavior:'smooth'});
@@ -21326,6 +21360,7 @@ async function buildDocx(){
 
 // ── Init ─────────────────────────────────────────────────────────────────
 
+document.getElementById('topBack').disabled=true;
 renderDots();
 
 </script>

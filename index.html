@@ -20431,6 +20431,7 @@ window._docxReady = Promise.resolve();
 <script>
 // ── Pricing data ────────────────────────────────────────────────────────
 const STARTER_MIN=1000;
+const ARREARS_NOTE='Any overage is billed monthly in arrears for the preceding month at the rates shown above.';
 const PSA_TIERS=[{max:5,rate:115},{max:10,rate:110},{max:25,rate:105},{max:50,rate:100},{max:Infinity,rate:90}];
 const PSA_TIER_LABELS=['1–5 users','6–10 users','11–25 users','26–50 users','51+ users'];
 const BILLING_TIERS=[
@@ -21198,7 +21199,8 @@ function buildReview(){
       html+=`<tr class="sub"><td colspan="2">Existing contract ends ${fmtDate(s.tpContractEnd)}</td></tr>`;
     if(s.tpCurrentCharges>0&&min!==s.tpCurrentCharges)
       html+=`<tr class="sub"><td colspan="2">Overridden — current charges are ${fmtDec(s.tpCurrentCharges)}/mo</td></tr>`;
-    html+=`<tr class="total"><td>Tigerpaw Monthly Total</td><td>${fmtDec(min)}/mo</td></tr></table></div>`;
+    html+=`<tr class="total"><td>Tigerpaw Monthly Total</td><td>${fmtDec(min)}/mo</td></tr>`;
+    html+=`<tr class="sub"><td colspan="2">${ARREARS_NOTE}</td></tr></table></div>`;
   }
 
   // PSA section
@@ -21216,7 +21218,8 @@ function buildReview(){
       if(s.reviiCredits)html+=`<tr class="sub"><td colspan="2">Rev.ii Credits: ${s.reviiCredits.toLocaleString()} included · $0.01/credit overage</td></tr>`;
       html+=`<tr class="sub"><td colspan="2">Minimum: ${fmt(min)}/mo</td></tr>`;
     }
-    html+=`<tr class="total"><td>New Rev.io Monthly Total</td><td>${fmt(psaTotal)}/mo</td></tr></table></div>`;
+    html+=`<tr class="total"><td>New Rev.io Monthly Total</td><td>${fmt(psaTotal)}/mo</td></tr>`;
+    html+=`<tr class="sub"><td colspan="2">${ARREARS_NOTE}</td></tr></table></div>`;
   }
 
   // Billing section
@@ -21230,6 +21233,7 @@ function buildReview(){
     if(s.products==='both'){
       html+=`<tr><td>Combined Monthly Minimum (floor)</td><td>${fmt(s.combinedMin)}/mo</td></tr>`;
     }
+    html+=`<tr class="sub"><td colspan="2">${ARREARS_NOTE}</td></tr>`;
     html+=`</table></div>`;
   }
 
@@ -21435,6 +21439,9 @@ async function buildDocx(){
     return rows;
   }
 
+  // Small print under the monthly fees.
+  const arrearsNote=()=>para([run(ARREARS_NOTE,{size:12,color:MGRAY,italics:true})],{spacing:{before:60,after:120}});
+
   // ── One-time fees table ──────────────────────────────────────────────
   function otTable(){
     const ot=(s.setupFee||0)+(s.migrationFee||0);
@@ -21605,7 +21612,7 @@ async function buildDocx(){
 
     return Packer.toBlob(new Document({sections:[{...pageProps,children:[
       hdrTable,para([run('')]),custTable,...endDateNote,
-      secHdr('MONTHLY LICENSE FEES'),minTable,para([run('')]),prodTable,
+      secHdr('MONTHLY LICENSE FEES'),minTable,para([run('')]),prodTable,arrearsNote(),
       secHdr('ADDITIONAL USERS'),overageNote,
       secHdr('ONE-TIME FEES'),otTable(),
       ...termsAndSig()
@@ -21644,7 +21651,7 @@ async function buildDocx(){
 
     return Packer.toBlob(new Document({sections:[{...pageProps,children:[
       hdrTable,para([run('')]),custTable,
-      secHdr('MONTHLY LICENSE FEES'),minTable,para([run('')]),prodTable,
+      secHdr('MONTHLY LICENSE FEES'),minTable,para([run('')]),prodTable,arrearsNote(),
       secHdr('ONE-TIME FEES'),otTable(),
       ...termsAndSig()
     ]}]}));
@@ -21727,6 +21734,7 @@ async function buildDocx(){
       hdrTable,para([run('')]),custTable,
       secHdr('REV.IO MONTHLY LICENSING FEE'),feeTable,
       para([run('"Monthly Licensee Communications Billing" shall include all amounts billed by Licensee to its customers during the previous month that generate communications taxes through the integrated tax database provider, excluding charges subject only to sales and use tax, Licensee write-offs, and "Non-Recurring" product types.',{size:16,color:MGRAY,italics:true})],{spacing:{before:80,after:160}}),
+      arrearsNote(),
       secHdr('REV.IO OPTIONS'),optTable,
       secHdr('CDR STORAGE'),storageTable,
       secHdr('CDR FORMATS & TAX DATABASE'),cdrTable,
@@ -21770,7 +21778,7 @@ async function buildDocx(){
 
     return Packer.toBlob(new Document({sections:[{...pageProps,children:[
       hdrTable,para([run('')]),custTable,
-      secHdr('MONTHLY LICENSE FEES'),minTable,para([run('')]),prodTable,
+      secHdr('MONTHLY LICENSE FEES'),minTable,para([run('')]),prodTable,arrearsNote(),
       secHdr('ONE-TIME FEES'),otTable(),
       ...termsAndSig()
     ]}]}));

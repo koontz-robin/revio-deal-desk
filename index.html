@@ -20460,6 +20460,20 @@ function fmtDate(iso){
   if(!y||!m||!d)return String(iso);
   return new Date(y,m-1,d).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
 }
+// New Rev.io runs month-to-month on a 30-day term; everything else defaults to 12 months.
+function defaultTerm(){
+  return s.products==='psa'?{n:30,unit:'days'}:{n:12,unit:'months'};
+}
+function applyDefaultTerm(){
+  if(s.termTouched) return;
+  const d=defaultTerm();
+  s.term=d.n; s.termUnit=d.unit;
+}
+function termLabel(){
+  const n=s.term||0;
+  const u=s.termUnit==='days'?'day':'month';
+  return n+' '+u+(n===1?'':'s');
+}
 function fmt(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
 function fmtDec(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
@@ -20489,7 +20503,7 @@ function recommendTier(volume){
 const s={
   docType:null,products:null,starterPack:null,prospectLogo:null,prospectLogoW:0,prospectLogoH:0,
   company:'',contact:'',date:new Date().toISOString().split('T')[0],
-  rep:'',term:12,address:'',city:'',state:'',zip:'',signor:'',email:'',
+  rep:'',term:12,termUnit:'months',termTouched:false,address:'',city:'',state:'',zip:'',signor:'',email:'',
   taxProvider:'',
   // PSA
   starterMin:1000,psaMin:1000,stdUsers:0,fieldUsers:0,reviiCredits:15000,
@@ -20620,6 +20634,7 @@ function pick(key,val,el){
 function buildStep5(){
   const inner=document.getElementById('step5inner');
   inner.innerHTML='';
+  applyDefaultTerm();
   // An addendum is a standalone document — no product configuration.
   if(s.docType==='addendum'){
     inner.appendChild(buildAddendumCard());
@@ -20700,6 +20715,22 @@ function buildPsaCard(){
         <div class="field">
           <label>Data Migration ($)</label>
           <input type="number" id="psa_migration" value="${s.migrationFee}" min="0" oninput="s.migrationFee=parseFloat(this.value)||0">
+        </div>
+      </div>
+
+      <div class="slabel">Agreement Term</div>
+      <div class="fg g2">
+        <div class="field">
+          <label>Term</label>
+          <input type="number" id="psa_term" value="${s.term}" min="1" oninput="s.term=parseInt(this.value)||1;s.termTouched=true">
+          <span class="hint">Defaults to 30 days</span>
+        </div>
+        <div class="field">
+          <label>Unit</label>
+          <select id="psa_term_unit" onchange="s.termUnit=this.value;s.termTouched=true">
+            <option value="days" ${s.termUnit==='days'?'selected':''}>Days</option>
+            <option value="months" ${s.termUnit==='months'?'selected':''}>Months</option>
+          </select>
         </div>
       </div>
     </div>`;
@@ -21050,7 +21081,7 @@ function buildBillingCard(){
       <div class="fg g2">
         <div class="field">
           <label>Term (months)</label>
-          <input type="number" id="f_term" value="${s.term}" min="1" oninput="s.term=parseInt(this.value)||12">
+          <input type="number" id="f_term" value="${s.term}" min="1" oninput="s.term=parseInt(this.value)||12;s.termUnit='months';s.termTouched=true">
           <span class="hint">Auto-renews in same increment with 60-day non-renewal notice</span>
         </div>
         <div class="field">
@@ -21173,10 +21204,9 @@ function buildReview(){
   // PSA section
   if(s.products!=='billing'&&s.products!=='tigerpaw'){
     const rate=psaRate(s.stdUsers||1);
-    const stdFee=(s.starterPack?7:s.stdUsers)*( s.starterPack?115:rate);
-    const fieldFee=(s.starterPack?3:s.fieldUsers)*30;
-    const min=s.starterPack?s.starterMin:(s.products==='psa'?s.psaMin:s.psaMin);
-    const psaTotal=Math.max(stdFee+fieldFee,min);
+    // Minimum drives the total; the per-user lines below are the make-up of it.
+    const min=s.starterPack?s.starterMin:s.psaMin;
+    const psaTotal=min;
     html+=`<div class="rev-section"><h4>New Rev.io Monthly Fees</h4><table class="rev-tbl">`;
     if(s.starterPack){
       html+=`<tr><td>Starter Pack (7 Std + 3 Field + 15K Rev.ii Credits)</td><td>${fmt(psaTotal)}/mo</td></tr>`;
@@ -21214,9 +21244,9 @@ function buildReview(){
   // Year 1
   let mo=0;
   if(s.products==='tigerpaw'){mo=s.tpMin||0;}
-  else if(s.products==='psa'){const r=psaRate(s.stdUsers||1);mo=Math.max((s.starterPack?7:s.stdUsers)*(s.starterPack?115:r)+(s.starterPack?3:s.fieldUsers)*30,s.starterPack?s.starterMin:s.psaMin);}
+  else if(s.products==='psa'){mo=s.starterPack?s.starterMin:s.psaMin;}
   else if(s.products==='billing'){mo=s.billingMin+addonTotal;}
-  else{const r=psaRate(s.stdUsers||1);const psaM=Math.max(s.stdUsers*r+s.fieldUsers*30,s.psaMin||1000);mo=Math.max(psaM+s.billingMin+addonTotal,s.combinedMin||1000);}
+  else{mo=s.combinedMin||1000;}
 
   html+=`<div class="callout info"><b>Year 1 Estimated Total:</b> ${fmt(mo*12+ot)}</div>`;
   body.innerHTML=html;
@@ -21386,7 +21416,7 @@ async function buildDocx(){
     :new Table({width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,rows:[row(
         new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('COMPANY'),val(s.company),lbl('SALES REP'),blank()]}),
         new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('CONTACT'),val(s.contact),lbl('DATE'),blank()]}),
-        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('EMAIL'),blank(),lbl('TERM'),para([run(s.term+' months',{size:14,bold:true,color:DARK})],{spacing:{after:120}})]})
+        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('EMAIL'),blank(),lbl('TERM'),para([run(termLabel(),{size:14,bold:true,color:DARK})],{spacing:{after:120}})]})
       )]});
 
   // ── PSA product rows ─────────────────────────────────────────────────
@@ -21587,14 +21617,8 @@ async function buildDocx(){
   // ════════════════════════════════════════════════════════════════════
   if(s.products==='psa'){
     const rate=psaRate(s.stdUsers||1);
-    let subtotal;
-    if(s.starterPack){
-      subtotal=(s.starterMin||STARTER_MIN);
-    } else {
-      const stdFee=(s.stdUsers||0)*rate;
-      const fieldFee=(s.fieldUsers||0)*30;
-      subtotal=Math.max(stdFee+fieldFee,s.psaMin||1000);
-    }
+    // The monthly minimum is the agreed number, so the subtotal always matches it.
+    const subtotal=s.starterPack?(s.starterMin||STARTER_MIN):(s.psaMin||1000);
 
     const minTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
@@ -21612,7 +21636,7 @@ async function buildDocx(){
     const prodTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,columnWidths:COL4,
       rows:[
-        row(hc(s.starterPack?'INCLUDED PRODUCT':'ITEM',COL4[0]),hc('QUANTITY',COL4[1]),hc(s.starterPack?'OVERAGE RATE':'USER RATE',COL4[2]),hc('TOTAL',COL4[3])),
+        row(hc(s.starterPack?'INCLUDED PRODUCT':'ITEM',COL4[0]),hc('QUANTITY',COL4[1]),hc('OVERAGE RATE',COL4[2]),hc('TOTAL',COL4[3])),
         ...psaRows(),
         row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT})),
       ]
@@ -21717,10 +21741,8 @@ async function buildDocx(){
   // ════════════════════════════════════════════════════════════════════
   if(s.products==='both'){
     const rate=psaRate(s.stdUsers||1);
-    const psaBase=s.starterPack?(s.starterMin||STARTER_MIN):Math.max((s.stdUsers||0)*rate+(s.fieldUsers||0)*30,s.psaMin||1000);
     const enabledOpts=REV_OPTIONS.filter(o=>s[o.key]);
-    const addonTotal=enabledOpts.reduce((sum,o)=>sum+(s[o.key+'Rate']||0),0)+(s.cdrExtra||0)*100;
-    const subtotal=Math.max(psaBase+(s.billingMin||0)+addonTotal,s.combinedMin||1000);
+    const subtotal=s.combinedMin||1000;
 
     const minTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,

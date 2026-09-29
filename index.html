@@ -76,8 +76,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .fg.g1{grid-template-columns:1fr}
 .field{display:flex;flex-direction:column;gap:5px}
 .field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
-.field input,.field select{border:1.5px solid var(--border);border-radius:8px;padding:12px 14px;font-size:15px;color:var(--text);background:var(--surface);transition:border-color .15s;width:100%}
-.field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+.field input,.field select,.field textarea{border:1.5px solid var(--border);border-radius:8px;padding:12px 14px;font-size:15px;color:var(--text);background:var(--surface);transition:border-color .15s;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+.field textarea{font-family:inherit;resize:vertical;min-height:88px;line-height:1.5}
 .field input[type=date]{color-scheme:dark}
 .field .hint{font-size:12px;color:var(--text3)}
 .field .calc{font-size:12px;color:var(--accent);font-weight:600}
@@ -185,7 +186,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="card-title">What are you creating?</div>
       </div>
       <div class="card-body">
-        <div class="opt-grid cols3">
+        <div class="opt-grid cols2">
           <button class="opt-btn" onclick="pick('docType','quote',this)">
             <span class="opt-icon">📋</span>
             <span class="opt-label">Quote</span>
@@ -200,6 +201,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <span class="opt-icon">🔄</span>
             <span class="opt-label">Client Renewal</span>
             <span class="opt-desc">Renewal agreement for an existing client</span>
+          </button>
+          <button class="opt-btn" onclick="pick('docType','addendum',this)">
+            <span class="opt-icon">📎</span>
+            <span class="opt-label">Addendum</span>
+            <span class="opt-desc">Amends an agreement already in place</span>
           </button>
         </div>
       </div>
@@ -250,7 +256,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <button class="opt-btn" onclick="pick('starterPack',true,this)">
             <span class="opt-icon">🚀</span>
             <span class="opt-label">Yes — Starter Pack</span>
-            <span class="opt-desc">Fixed bundle, choose $750 or $1,000 minimum</span>
+            <span class="opt-desc">Fixed bundle at the $1,000 monthly minimum</span>
           </button>
           <button class="opt-btn" onclick="pick('starterPack',false,this)">
             <span class="opt-icon">⚙️</span>
@@ -20424,6 +20430,7 @@ window._docxReady = Promise.resolve();
 </script>
 <script>
 // ── Pricing data ────────────────────────────────────────────────────────
+const STARTER_MIN=1000;
 const PSA_TIERS=[{max:5,rate:115},{max:10,rate:110},{max:25,rate:105},{max:50,rate:100},{max:Infinity,rate:90}];
 const PSA_TIER_LABELS=['1–5 users','6–10 users','11–25 users','26–50 users','51+ users'];
 const BILLING_TIERS=[
@@ -20502,6 +20509,8 @@ const s={
   // Tigerpaw renewal — current charges become the minimum, current users are included
   tpCurrentCharges:0,tpMin:0,tpStdUsers:0,tpFieldUsers:0,
   tpStdOverage:115,tpFieldOverage:30,tpContractEnd:'',
+  // Addendum — the agreement being amended
+  addendumOrigDate:'',addendumEffDate:'',addendumChanges:'',
   // Combined
   combinedMin:1000,
 };
@@ -20517,10 +20526,10 @@ const STEP_LABELS=['Type','Products','Starter Pack','Configuration','Review'];
 function go(from){
   if(from>0){
     // Validate
-    if(from===1&&!s.docType)return alert('Please select Quote or Contract.');
+    if(from===1&&!s.docType)return alert('Please choose what you are creating.');
     if(from===2&&!s.products)return alert('Please select a product.');
     if(from===3&&s.starterPack===null)return alert('Please make a selection.');
-    
+
   }
   // Compute next/prev step
   let next=cur+(from>0?1:-1);
@@ -20530,6 +20539,11 @@ function go(from){
   // Starter Pack does not apply to a Tigerpaw renewal
   if(from===2&&s.products==='tigerpaw'){s.starterPack=false;next=4;}
   if(from<0&&cur===4&&s.products==='tigerpaw')next=2; // back past step 3
+  // An addendum carries no pricing, so it skips product selection entirely.
+  if(s.docType==='addendum'){
+    if(from===1)next=4;
+    if(from<0&&cur===4)next=1;
+  }
 
   // Build step 5 when entering it
   if(next===4)buildStep5();
@@ -20606,6 +20620,11 @@ function pick(key,val,el){
 function buildStep5(){
   const inner=document.getElementById('step5inner');
   inner.innerHTML='';
+  // An addendum is a standalone document — no product configuration.
+  if(s.docType==='addendum'){
+    inner.appendChild(buildAddendumCard());
+    return;
+  }
   if(s.products==='tigerpaw'){
     inner.appendChild(buildTigerpawCard());
     setTimeout(updateTigerpawRec,0);
@@ -20628,6 +20647,7 @@ function buildPsaCard(){
   const card=document.createElement('div');
   card.className='card';
   const isPsa=s.products==='psa';
+  if(s.starterPack) s.starterMin=STARTER_MIN;
   card.innerHTML=`
     <div class="card-head">
       <div class="card-step">Step 4 of 5</div>
@@ -20636,16 +20656,7 @@ function buildPsaCard(){
     <div class="card-body">
       ${s.starterPack?`
         <div class="slabel">Monthly Minimum</div>
-        <div class="opt-grid cols2" style="margin-bottom:20px">
-          <button class="opt-btn${s.starterMin===750?' sel':''}" onclick="s.starterMin=750;this.closest('.opt-grid').querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('sel'));this.classList.add('sel')">
-            <span class="opt-label">$750 / month</span>
-            <span class="opt-desc">Reduced minimum</span>
-          </button>
-          <button class="opt-btn${s.starterMin===1000?' sel':''}" onclick="s.starterMin=1000;this.closest('.opt-grid').querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('sel'));this.classList.add('sel')">
-            <span class="opt-label">$1,000 / month</span>
-            <span class="opt-desc">Standard minimum</span>
-          </button>
-        </div>
+        <div class="callout info" style="margin-bottom:20px"><b>$1,000 / month</b> — Starter Pack minimum</div>
         <div class="callout accent">Starter Pack includes 7 Standard users, 3 Field users, and 15,000 Rev.ii Credits at no additional charge.</div>
       `:`
         <div class="slabel">Monthly Minimum</div>
@@ -20704,7 +20715,7 @@ function updatePsaHint(){
 
 function calcPsaFee(){
   if(s.starterPack){
-    return (s.starterMin||750);
+    return (s.starterMin||STARTER_MIN);
   }
   const std=s.stdUsers||0,field=s.fieldUsers||0;
   const rate=psaRate(std||1);
@@ -20746,6 +20757,56 @@ function updateCombinedMin(){
   if(billingFee>0) parts.push(`Billing ${fmt(billingFee)}`);
   if(addons>0) parts.push(`Add-ons ${fmt(addons)}`);
   recEl.innerHTML=`<b>Suggested Combined Minimum: ${fmt(rec)}/mo</b>${parts.length?' — '+parts.join(' + '):''}<br><span style="color:var(--text2);font-size:12px">Updates as you adjust New Rev.io and Billing fields above.</span>`;
+}
+
+function buildAddendumCard(){
+  const card=document.createElement('div');
+  card.className='card';
+  card.innerHTML=`
+    <div class="card-head">
+      <div class="card-step">Step 4 of 5</div>
+      <div class="card-title">Addendum</div>
+      <div class="card-sub">Amends a Software License Agreement already in place.</div>
+    </div>
+    <div class="card-body">
+      <div class="slabel">Parties</div>
+      <div class="fg g2">
+        <div class="field">
+          <label>Licensee (Client Name)</label>
+          <input type="text" id="add_client" value="${esc(s.company)}" placeholder="e.g. Unicom" oninput="s.company=this.value">
+          <span class="hint">Named as "Licensee" throughout the addendum</span>
+        </div>
+        <div class="field">
+          <label>Sales Rep</label>
+          <input type="text" id="add_rep" value="${esc(s.rep)}" placeholder="Optional" oninput="s.rep=this.value">
+        </div>
+      </div>
+
+      <div class="slabel">Dates</div>
+      <div class="fg g2">
+        <div class="field">
+          <label>Effective Date</label>
+          <input type="date" id="add_eff" value="${esc(s.addendumEffDate)}" oninput="s.addendumEffDate=this.value">
+          <span class="hint">Leave blank for a line to fill in by hand</span>
+        </div>
+        <div class="field">
+          <label>Original Agreement Date</label>
+          <input type="date" id="add_orig" value="${esc(s.addendumOrigDate)}" oninput="s.addendumOrigDate=this.value">
+          <span class="hint">Optional — dates the Agreement being amended</span>
+        </div>
+      </div>
+
+      <div class="slabel">Amendment</div>
+      <div class="fg g1">
+        <div class="field">
+          <label>Updated Terms</label>
+          <textarea id="add_changes" rows="9" placeholder="e.g. Rev.io agrees to provide Licensee with a monthly credit of five hundred dollars ($500), to be applied against Licensee's monthly minimum License Fees…"
+                    oninput="s.addendumChanges=this.value">${esc(s.addendumChanges)}</textarea>
+          <span class="hint">Becomes the body of the AMENDMENT section. Write it as it should read in the agreement.</span>
+        </div>
+      </div>
+    </div>`;
+  return card;
 }
 
 function buildTigerpawCard(){
@@ -21054,7 +21115,7 @@ function updateTierRec(){
 
 // ── Step 6: Review ────────────────────────────────────────────────────────
 function docTypeLabel(){
-  return s.docType==='quote'?'Quote':s.docType==='renewal'?'Renewal':'Contract';
+  return s.docType==='quote'?'Quote':s.docType==='renewal'?'Renewal':s.docType==='addendum'?'Addendum':'Contract';
 }
 function productLabel(){
   return s.products==='psa'?'New Rev.io'
@@ -21072,6 +21133,25 @@ function buildReview(){
   let html='';
 
   const addonTotal=calcAddonTotal();
+
+  // An addendum stands alone: parties, the amendment, signatures. No pricing.
+  if(s.docType==='addendum'){
+    sub.textContent=`${s.company||'Licensee'} · Addendum`;
+    const miss=[];
+    if(!s.company)miss.push('Licensee name');
+    if(!s.addendumChanges)miss.push('updated terms');
+    body.innerHTML=`<div class="rev-section"><h4>Addendum</h4><table class="rev-tbl">
+        <tr><td>Licensee</td><td>${s.company?esc(s.company):'<span style="color:var(--text3)">not set</span>'}</td></tr>
+        <tr><td>Effective Date</td><td>${s.addendumEffDate?fmtDate(s.addendumEffDate):'<span style="color:var(--text3)">blank line to fill in</span>'}</td></tr>
+        ${s.addendumOrigDate?`<tr><td>Amends Agreement dated</td><td>${fmtDate(s.addendumOrigDate)}</td></tr>`:''}
+        ${s.rep?`<tr><td>Sales Rep</td><td>${esc(s.rep)}</td></tr>`:''}
+      </table></div>
+      <div class="rev-section"><h4>Updated Terms</h4>
+        <div style="font-size:14px;line-height:1.6;color:var(--text2);white-space:pre-wrap">${s.addendumChanges?esc(s.addendumChanges):'<span style="color:var(--text3)">No updated terms entered.</span>'}</div>
+      </div>`
+      +(miss.length?`<div class="callout warn" style="margin-top:14px">Still needed: ${miss.join(' and ')}.</div>`:'');
+    return;
+  }
 
   sub.textContent=`${s.company||'Customer'} · ${docTypeLabel()} · ${productLabel()}`;
 
@@ -21179,8 +21259,10 @@ async function generateDoc(){
     const blob=await buildDocx();
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
-    const noun=s.docType==='quote'?'Quote':s.docType==='renewal'?'Renewal':'Agreement';
-    a.href=url;a.download=`${s.company||'RevIO'} - ${productLabel()} ${noun}.docx`;
+    const noun=s.docType==='quote'?'Quote':s.docType==='renewal'?'Renewal':s.docType==='addendum'?'Addendum':'Agreement';
+    a.href=url;a.download=s.docType==='addendum'
+      ?`${s.company||'RevIO'} - Addendum.docx`
+      :`${s.company||'RevIO'} - ${productLabel()} ${noun}.docx`;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     URL.revokeObjectURL(url);
     btn.textContent='✓ Downloaded!';
@@ -21270,7 +21352,7 @@ async function buildDocx(){
       new TableCell({
         width:{size:5800,type:WidthType.DXA},borders:nb(),margins:m(80,80,0,0),
         children:[
-          ...(s.docType!=='quote'?[para([run(s.docType==='renewal'?'RENEWAL AGREEMENT':'SOFTWARE LICENSE AGREEMENT',{bold:true,size:20,color:NAVY})],{alignment:AlignmentType.RIGHT})]:[]),
+          ...(s.docType!=='quote'?[para([run(s.docType==='renewal'?'RENEWAL AGREEMENT':s.docType==='addendum'?'SOFTWARE LICENSE AGREEMENT ADDENDUM':'SOFTWARE LICENSE AGREEMENT',{bold:true,size:20,color:NAVY})],{alignment:AlignmentType.RIGHT})]:[]),
           s.docType==='quote'
             ?para([run('SALES PROPOSAL',{bold:true,size:20,color:NAVY})],{alignment:AlignmentType.RIGHT})
             :para([run(' ')]),
@@ -21357,20 +21439,9 @@ async function buildDocx(){
   }
 
   // ── Terms & Signature ────────────────────────────────────────────────
-  function termsAndSig(){
-    if(s.docType==='quote')return[];
-    const tos='By signing below, Licensee acknowledges and agrees to the Rev.io Terms of Service available here: https://act.rev.io/rev.io-terms-conditions. This Software License Agreement, which collectively includes Rev.io Terms of Service, Schedule A: Terms & Conditions, Schedule B: Licensed Products and System Requirements, and any addendums thereto, is made between Rev.io, LLC and Licensee.';
-    const overage='Any usage, users, or other quantities in excess of the amounts included above shall be billed monthly in arrears at the rates stated in this agreement.';
-    const tosT=new Table({
-      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
-      rows:[row(
-        new TableCell({borders:bot(),margins:m(300,300,200,200),children:[
-          para([run(tos,{size:14,color:GRAY})]),
-          para([run(overage,{size:14,color:GRAY})],{spacing:{before:140}}),
-        ]})
-      )]
-    });
-    const sigT=new Table({
+  // Signature blocks, shared by the agreements and the addendum.
+  function sigTable(){
+    return new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
       rows:[row(
         new TableCell({width:{size:PAGE_W/2,type:WidthType.DXA},borders:bot(),margins:m(200,200,120,120),children:[
@@ -21387,7 +21458,69 @@ async function buildDocx(){
         ]}),
       )]
     });
-    return[secHdr('TERMS & CONDITIONS'),tosT,para([run('')]),sigT];
+  }
+
+  function termsAndSig(){
+    if(s.docType==='quote')return[];
+    const tos='By signing below, Licensee acknowledges and agrees to the Rev.io Terms of Service available here: https://act.rev.io/rev.io-terms-conditions. This Software License Agreement, which collectively includes Rev.io Terms of Service, Schedule A: Terms & Conditions, Schedule B: Licensed Products and System Requirements, and any addendums thereto, is made between Rev.io, LLC and Licensee.';
+    const overage='Any usage, users, or other quantities in excess of the amounts included above shall be billed monthly in arrears at the rates stated in this agreement.';
+    const tosT=new Table({
+      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
+      rows:[row(
+        new TableCell({borders:bot(),margins:m(300,300,200,200),children:[
+          para([run(tos,{size:14,color:GRAY})]),
+          para([run(overage,{size:14,color:GRAY})],{spacing:{before:140}}),
+        ]})
+      )]
+    });
+    return[secHdr('TERMS & CONDITIONS'),tosT,para([run('')]),sigTable()];
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // Addendum — amends an agreement already in place, carries no pricing
+  // ════════════════════════════════════════════════════════════════════
+  if(s.docType==='addendum'){
+    const licensee=s.company||'Licensee';
+    const asOf=s.addendumEffDate?fmtDate(s.addendumEffDate):'___________________';
+    const agreement='the Software License Agreement'+(s.addendumOrigDate?' dated '+fmtDate(s.addendumOrigDate):'');
+
+    // Header block: company / sales rep on the left, effective date on the right.
+    const addCust=new Table({
+      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
+      rows:[row(
+        new TableCell({borders:bot(),shading:{fill:LGRAY,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
+          lbl('COMPANY'),val(s.company),lbl('SALES REP'),val(s.rep),
+        ]}),
+        new TableCell({borders:bot(),shading:{fill:LGRAY,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
+          lbl('EFFECTIVE DATE'),
+          s.addendumEffDate
+            ?para([run(fmtDate(s.addendumEffDate),{size:14,bold:true,color:DARK})],{spacing:{after:120}})
+            :para([run('___________________',{size:14,color:DARK})],{spacing:{after:120}}),
+        ]}),
+      )]
+    });
+
+    const body=[
+      secHdr('PARTIES'),
+      para([run(`This Addendum ("Addendum") is made as of ${asOf}, by and between Rev.io, LLC ("Rev.io") and ${licensee} ("Licensee").`,{size:14,color:GRAY})],{spacing:{after:100}}),
+      para([run('This Addendum relates to and incorporates by reference the Software License Agreement ("Agreement") entered into by and between Rev.io and Licensee.',{size:14,color:GRAY})],{spacing:{after:100}}),
+
+      secHdr('AMENDMENT'),
+      para([run('In consideration of the mutual promises made in the Agreement and this Addendum, the parties agree as follows:',{size:14,color:GRAY})],{spacing:{after:100}}),
+      para([run(`a.  This Addendum shall supplement and amend ${agreement}, to provide the following updated terms in connection with Licensee's subscription to and license of the Licensed Products:`,{size:14,color:GRAY})],{spacing:{after:100}}),
+      // The rep's own wording, one paragraph per blank-line-separated block.
+      ...String(s.addendumChanges||'').split(/\n\s*\n/).map(t=>t.trim()).filter(Boolean)
+         .map(t=>para([run(t,{size:14,color:DARK})],{spacing:{after:100},indent:{left:360}})),
+      para([run('b.  Except as expressly set forth herein, all other terms and provisions of the Agreement shall remain in effect.',{size:14,color:GRAY})],{spacing:{after:100}}),
+
+      secHdr('SIGNATURES'),
+      para([run('IN WITNESS WHEREOF, the parties have executed this Addendum as of the date first written above.',{size:14,color:GRAY})],{spacing:{after:140}}),
+      sigTable(),
+    ];
+
+    return Packer.toBlob(new Document({sections:[{...pageProps,children:[
+      hdrTable,para([run('')]),addCust,para([run('')]),...body
+    ]}]}));
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -21456,7 +21589,7 @@ async function buildDocx(){
     const rate=psaRate(s.stdUsers||1);
     let subtotal;
     if(s.starterPack){
-      subtotal=(s.starterMin||750);
+      subtotal=(s.starterMin||STARTER_MIN);
     } else {
       const stdFee=(s.stdUsers||0)*rate;
       const fieldFee=(s.fieldUsers||0)*30;
@@ -21584,7 +21717,7 @@ async function buildDocx(){
   // ════════════════════════════════════════════════════════════════════
   if(s.products==='both'){
     const rate=psaRate(s.stdUsers||1);
-    const psaBase=s.starterPack?(s.starterMin||750):Math.max((s.stdUsers||0)*rate+(s.fieldUsers||0)*30,s.psaMin||1000);
+    const psaBase=s.starterPack?(s.starterMin||STARTER_MIN):Math.max((s.stdUsers||0)*rate+(s.fieldUsers||0)*30,s.psaMin||1000);
     const enabledOpts=REV_OPTIONS.filter(o=>s[o.key]);
     const addonTotal=enabledOpts.reduce((sum,o)=>sum+(s[o.key+'Rate']||0),0)+(s.cdrExtra||0)*100;
     const subtotal=Math.max(psaBase+(s.billingMin||0)+addonTotal,s.combinedMin||1000);

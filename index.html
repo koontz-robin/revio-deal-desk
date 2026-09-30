@@ -21231,6 +21231,10 @@ function productLabel(){
     :s.products==='tigerpaw'?'Tigerpaw'
     :s.products==='billing'?'Classic Rev.io':'Rev.io';
 }
+// Classic Rev.io is the internal name; customers see Communications Billing.
+function productDocLabel(){
+  return s.products==='billing'?'Communications Billing':productLabel();
+}
 
 function calcAddonTotal(){
   return REV_OPTIONS.reduce((sum,o)=>sum+(s[o.key]?(s[o.key+'Rate']||0):0),0)+(s.cdrExtra||0)*100;
@@ -21387,7 +21391,7 @@ async function generateDoc(){
     const noun=s.docType==='quote'?'Quote':s.docType==='renewal'?'Renewal':s.docType==='addendum'?'Addendum':'Agreement';
     a.href=url;a.download=s.docType==='addendum'
       ?`${s.company||'RevIO'} - Addendum.docx`
-      :`${s.company||'RevIO'} - ${productLabel()} ${noun}.docx`;
+      :`${s.company||'RevIO'} - ${productDocLabel()} ${noun}.docx`;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     URL.revokeObjectURL(url);
     btn.textContent='✓ Downloaded!';
@@ -21909,7 +21913,7 @@ async function buildDocx(){
       rows:[
         row(hc('INCLUDED PRODUCTS',COL4[0]),hc('QUANTITY',COL4[1]),hc('RATE',COL4[2]),hc('TOTAL',COL4[3])),
         ...psaRows(),
-        row(cel('Classic Rev.io',{bold:true}),cel(fmt(s.billingMin||0),{align:AlignmentType.CENTER}),cel((s.billingRate||0)+'%',{align:AlignmentType.CENTER}),cel(fmt(s.billingMin||0),{align:AlignmentType.RIGHT})),
+        row(cel('Communications Billing',{bold:true}),cel(fmt(s.billingMin||0),{align:AlignmentType.CENTER}),cel((s.billingRate||0)+'%',{align:AlignmentType.CENTER}),cel(fmt(s.billingMin||0),{align:AlignmentType.RIGHT})),
         ...enabledOpts.map(o=>row(cel(o.label,{bold:true}),cel('1',{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.RIGHT}))),
         row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT})),
       ]

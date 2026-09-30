@@ -20455,6 +20455,18 @@ window._docxReady = Promise.resolve();
 <script>
 // ── Pricing data ────────────────────────────────────────────────────────
 const STARTER_MIN=1000;
+// Per-CDR storage rates, keyed by retention tier.
+const CDR_STORAGE_RATES={'18mo':0.0010,'6mo':0.0003};
+function cdrRate(){return CDR_STORAGE_RATES[s.cdrStorage]||0;}
+function cdrStorageFee(){return (s.cdrVolume||0)*cdrRate();}
+function cdrFeeHint(){
+  if(!s.cdrVolume) return '';
+  return s.cdrVolume.toLocaleString()+' \u00d7 $'+cdrRate().toFixed(4)+' = '+fmtDec(cdrStorageFee())+'/mo';
+}
+function updateCdrFee(){
+  const el=document.getElementById('cdrFeeHint');
+  if(el) el.textContent=cdrFeeHint();
+}
 const ARREARS_NOTE='Any overage is billed monthly in arrears for the preceding month at the rates shown above.';
 const PSA_TIERS=[{max:5,rate:115},{max:10,rate:110},{max:25,rate:105},{max:50,rate:100},{max:Infinity,rate:90}];
 const PSA_TIER_LABELS=['1–5 users','6–10 users','11–25 users','26–50 users','51+ users'];
@@ -20535,7 +20547,7 @@ const s={
   setupFee:0,migrationFee:0,
   // Billing
   billingVolume:0,billingMin:1000,billingRate:2.50,billingTier:'startup',
-  cdrFormats:0,cdrExtra:0,cdrStorage:'18mo',
+  cdrFormats:0,cdrExtra:0,cdrStorage:'18mo',cdrVolume:0,
   // Rev.io options (enabled flag + rate)
   // Rev.io Options
   agentBundle:false,agentBundleRate:500,
@@ -21121,6 +21133,13 @@ function buildBillingCard(){
           <div class="sb-rate">$0.0003 / CDR</div>
         </button>
       </div>
+      <div class="fg g1" style="margin-top:14px">
+        <div class="field">
+          <label>Estimated Monthly CDR Volume</label>
+          <input type="number" id="f_cdrVol" value="${s.cdrVolume||''}" min="0" step="1000" placeholder="e.g. 250000" oninput="s.cdrVolume=parseInt(this.value)||0;updateCdrFee()">
+          <span class="calc" id="cdrFeeHint">${cdrFeeHint()}</span>
+        </div>
+      </div>
 
 
 
@@ -21176,6 +21195,7 @@ function toggleOpt(key,el,stdRate){
 
 function pickStorage(val,el){
   s.cdrStorage=val;
+  updateCdrFee();
   el.closest('.storage-grid').querySelectorAll('.storage-btn').forEach(b=>b.classList.remove('sel'));
   el.classList.add('sel');
 }
@@ -21300,6 +21320,7 @@ function buildReview(){
     if(s.products==='billing'&&s.reviiCredits)html+=`<tr class="sub"><td colspan="2">Rev.ii Credits: ${s.reviiCredits.toLocaleString()} included · $0.01/credit overage</td></tr>`;
     if(addons.length)html+=`<tr><td>Rev.io Options (${addons.map(o=>o.label).join(', ')})</td><td>${fmt(addons.reduce((sum,o)=>sum+(s[o.key+'Rate']||0),0))}/mo</td></tr>`;
     if(s.cdrExtra)html+=`<tr><td>Additional CDR Formats (${s.cdrExtra} × $100)</td><td>${fmt(s.cdrExtra*100)}/mo</td></tr>`;
+    if(s.cdrVolume>0)html+=`<tr><td>Estimated CDR Storage (${s.cdrVolume.toLocaleString()} \u00d7 $${cdrRate().toFixed(4)})</td><td>${fmtDec(cdrStorageFee())}/mo</td></tr>`;
     if(s.products==='both'){
       html+=`<tr><td>Combined Monthly Minimum (floor)</td><td>${fmt(s.combinedMin)}/mo</td></tr>`;
     }
@@ -21813,6 +21834,21 @@ async function buildDocx(){
       ]
     });
 
+    const cdrChargeTable=s.cdrVolume>0?new Table({
+      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
+      rows:[row(
+        new TableCell({width:{size:7500,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
+          para([run('ESTIMATED CDR STORAGE',{bold:true,size:13,color:DARK})]),
+          para([run(s.cdrVolume.toLocaleString()+' CDRs / month \u00d7 $'+cdrRate().toFixed(4)+' per CDR ('
+            +(s.cdrStorage==='18mo'?'18 months':'6 months')+' production). Estimate only; billed on actual volume.',
+            {size:11,color:MGRAY})]),
+        ]}),
+        new TableCell({width:{size:3300,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
+          para([run(fmtDec(cdrStorageFee())+' / month',{bold:true,size:15,color:DARK})],{alignment:AlignmentType.RIGHT}),
+        ]}),
+      )]
+    }):null;
+
     const cdrTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
       rows:[row(
@@ -21839,6 +21875,7 @@ async function buildDocx(){
       secHdr('REV.IO OPTIONS'),optTable,
       para([run('')]),subtotalTable,
       secHdr('CDR STORAGE'),storageTable,
+      ...(cdrChargeTable?[para([run('')]),cdrChargeTable]:[]),
       secHdr('CDR FORMATS & TAX DATABASE'),cdrTable,
       secHdr('SETUP & CONVERSION FEES'),otTable(),
       ...termsAndSig(),

@@ -20699,15 +20699,13 @@ function buildPsaCard(){
           <span class="hint">$30 / user flat rate</span>
         </div>
       </div>
-      ${s.starterPack?'':`
-        <div class="fg g1">
-          <div class="field">
-            <label>Rev.ii Credits</label>
-            <input type="number" value="${s.reviiCredits}" min="0" step="1000" oninput="s.reviiCredits=parseInt(this.value)||0">
-            <span class="hint">$0.01 / credit overage rate</span>
-          </div>
+      <div class="fg g1">
+        <div class="field">
+          <label>Rev.ii Credits</label>
+          <input type="number" id="psa_revii" value="${s.reviiCredits}" min="0" step="1000" oninput="s.reviiCredits=parseInt(this.value)||0">
+          <span class="hint">$0.01 / credit overage rate</span>
         </div>
-      `}
+      </div>
       <div class="slabel">Implementation Fees</div>
       <div class="fg g2">
         <div class="field">
@@ -20735,8 +20733,25 @@ function buildPsaCard(){
           </select>
         </div>
       </div>
+      ${(!s.starterPack||s.products==='both')?`
+      <div class="slabel">Add Classic Rev.io</div>
+      <div class="tog-row">
+        <label class="toggle-sw"><input type="checkbox" id="addClassic" ${s.products==='both'?'checked':''} onchange="toggleClassicRevio(this.checked)"><span class="toggle-track"></span></label>
+        <div class="tog-label">
+          <div class="tl">Communications Billing</div>
+          <div class="td">Add Classic Rev.io to this agreement — billing volume, Rev.io Options, CDR formats and storage, under a single combined minimum</div>
+        </div>
+      </div>
+      `:''}
     </div>`;
   return card;
+}
+
+// Bolting communications billing onto a New Rev.io deal is the combined agreement.
+function toggleClassicRevio(on){
+  s.products=on?'both':'psa';
+  // Re-render after the handler returns, since this rebuilds the card it sits in.
+  setTimeout(()=>{buildStep5();updatePsaRec();},0);
 }
 
 function updatePsaHint(){
@@ -20903,6 +20918,15 @@ function buildTigerpawCard(){
         </div>
       </div>
 
+      <div class="slabel">Rev.ii Credits</div>
+      <div class="fg g1">
+        <div class="field">
+          <label>Rev.ii Credits Included</label>
+          <input type="number" id="tp_revii" value="${s.reviiCredits}" min="0" step="1000" oninput="s.reviiCredits=parseInt(this.value)||0;updateTigerpawRec()">
+          <span class="hint">$0.01 / credit overage rate</span>
+        </div>
+      </div>
+
       <div class="slabel">Implementation Fees</div>
       <div class="fg g2">
         <div class="field">
@@ -21022,6 +21046,15 @@ function buildBillingCard(){
           <input type="number" id="f_bRate" value="${s.billingRate}" min="0" step="0.01" oninput="s.billingRate=parseFloat(this.value)||0">
         </div>
       </div>
+      ${s.products==='billing'?`
+      <div class="fg g1">
+        <div class="field">
+          <label>Rev.ii Credits</label>
+          <input type="number" id="b_revii" value="${s.reviiCredits}" min="0" step="1000" oninput="s.reviiCredits=parseInt(this.value)||0">
+          <span class="hint">$0.01 / credit overage rate</span>
+        </div>
+      </div>
+      `:''}
 
       <div class="slabel">Rev.io Options</div>
       <div id="revOptionsRows">
@@ -21195,6 +21228,8 @@ function buildReview(){
     html+=`<tr><td>Monthly Minimum (current Tigerpaw charges)</td><td>${fmtDec(min)}/mo</td></tr>`;
     html+=`<tr><td>Standard Users Included</td><td>${s.tpStdUsers||0}</td></tr>`;
     html+=`<tr><td>Field Users Included</td><td>${s.tpFieldUsers||0}</td></tr>`;
+    html+=`<tr><td>Rev.ii Credits Included</td><td>${(s.reviiCredits||0).toLocaleString()}</td></tr>`;
+    html+=`<tr class="sub"><td colspan="2">$0.01 per credit beyond the included amount</td></tr>`;
     html+=`<tr class="sub"><td colspan="2">Additional Standard Users: ${fmtDec(s.tpStdOverage||0)}/user/mo · Additional Field Users: ${fmtDec(s.tpFieldOverage||0)}/user/mo</td></tr>`;
     if(s.tpContractEnd)
       html+=`<tr class="sub"><td colspan="2">Existing contract ends ${fmtDate(s.tpContractEnd)}</td></tr>`;
@@ -21229,6 +21264,7 @@ function buildReview(){
     html+=`<div class="rev-section"><h4>Classic Rev.io Monthly Fees</h4><table class="rev-tbl">`;
     html+=`<tr><td>Monthly Minimum</td><td>${fmt(s.billingMin)}/mo</td></tr>`;
     if(s.billingRate)html+=`<tr class="sub"><td colspan="2">or ${s.billingRate}% of Monthly Licensee Billing — whichever is greater</td></tr>`;
+    if(s.products==='billing'&&s.reviiCredits)html+=`<tr class="sub"><td colspan="2">Rev.ii Credits: ${s.reviiCredits.toLocaleString()} included · $0.01/credit overage</td></tr>`;
     if(addons.length)html+=`<tr><td>Rev.io Options (${addons.map(o=>o.label).join(', ')})</td><td>${fmt(addons.reduce((sum,o)=>sum+(s[o.key+'Rate']||0),0))}/mo</td></tr>`;
     if(s.cdrExtra)html+=`<tr><td>Additional CDR Formats (${s.cdrExtra} × $100)</td><td>${fmt(s.cdrExtra*100)}/mo</td></tr>`;
     if(s.products==='both'){
@@ -21596,6 +21632,12 @@ async function buildDocx(){
           cel(fmtDec(s.tpFieldOverage||0)+' / user',{width:COL4[2],align:AlignmentType.CENTER}),
           cel('Included',{width:COL4[3],align:AlignmentType.RIGHT})
         ),
+        row(
+          cel('Rev.ii Credits',{bold:true,width:COL4[0]}),
+          cel((s.reviiCredits||0).toLocaleString(),{width:COL4[1],align:AlignmentType.CENTER}),
+          cel('$0.01 / credit',{width:COL4[2],align:AlignmentType.CENTER}),
+          cel('Included',{width:COL4[3],align:AlignmentType.RIGHT})
+        ),
         row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13}),cel(fmtDec(min),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT})),
       ]
     });
@@ -21734,6 +21776,8 @@ async function buildDocx(){
     const children=[
       hdrTable,para([run('')]),custTable,
       secHdr('REV.IO MONTHLY LICENSING FEE'),feeTable,
+      para([run('Rev.ii Credits: ',{bold:true,size:14,color:DARK}),
+            run((s.reviiCredits||0).toLocaleString()+' included, $0.01 per credit thereafter.',{size:14,color:GRAY})],{spacing:{before:80,after:0}}),
       para([run('"Monthly Licensee Communications Billing" shall include all amounts billed by Licensee to its customers during the previous month that generate communications taxes through the integrated tax database provider, excluding charges subject only to sales and use tax, Licensee write-offs, and "Non-Recurring" product types.',{size:16,color:MGRAY,italics:true})],{spacing:{before:80,after:160}}),
       arrearsNote(),
       secHdr('REV.IO OPTIONS'),optTable,

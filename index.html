@@ -21811,7 +21811,7 @@ async function buildDocx(){
       secHdr('REV.IO MONTHLY LICENSING FEE'),feeTable,
       para([run('Rev.ii Credits: ',{bold:true,size:14,color:DARK}),
             run((s.reviiCredits||0).toLocaleString()+' included, $0.01 per credit thereafter.',{size:14,color:GRAY})],{spacing:{before:80,after:0}}),
-      para([run('"Monthly Licensee Communications Billing" shall include all amounts billed by Licensee to its customers during the previous month that generate communications taxes through the integrated tax database provider, excluding charges subject only to sales and use tax, Licensee write-offs, and "Non-Recurring" product types.',{size:16,color:MGRAY,italics:true})],{spacing:{before:80,after:160}}),
+      para([run('"Monthly Licensee Communications Billing" shall include all amounts billed by Licensee to its customers during the previous month that generate communications taxes through the integrated tax database provider, excluding charges subject only to sales and use tax, Licensee write-offs, and "Non-Recurring" product types.',{size:12,color:MGRAY,italics:true})],{spacing:{before:80,after:160}}),
       arrearsNote(),
       secHdr('REV.IO OPTIONS'),optTable,
       secHdr('CDR STORAGE'),storageTable,

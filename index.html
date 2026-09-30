@@ -21774,6 +21774,22 @@ async function buildDocx(){
       )]
     });
 
+    // Monthly license fee plus whatever Rev.io Options are switched on.
+    const optionsTotal=enabledOpts.reduce((sum,o)=>sum+(s[o.key+'Rate']||0),0);
+    const monthlySubtotal=(s.billingMin||0)+optionsTotal;
+    const subtotalTable=new Table({
+      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
+      rows:[row(
+        new TableCell({width:{size:7500,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
+          para([run('MONTHLY SUBTOTAL',{bold:true,size:13,color:DARK})]),
+          para([run('Monthly License Fee'+(optionsTotal>0?' '+fmt(s.billingMin||0)+' plus Rev.io Options '+fmt(optionsTotal):'')+'.',{size:11,color:MGRAY})]),
+        ]}),
+        new TableCell({width:{size:3300,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
+          para([run(fmt(monthlySubtotal)+' / month',{bold:true,size:15,color:DARK})],{alignment:AlignmentType.RIGHT}),
+        ]}),
+      )]
+    });
+
     const storageTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
       rows:[
@@ -21814,6 +21830,7 @@ async function buildDocx(){
       para([run('"Monthly Licensee Communications Billing" shall include all amounts billed by Licensee to its customers during the previous month that generate communications taxes through the integrated tax database provider, excluding charges subject only to sales and use tax, Licensee write-offs, and "Non-Recurring" product types.',{size:12,color:MGRAY,italics:true})],{spacing:{before:80,after:160}}),
       arrearsNote(),
       secHdr('REV.IO OPTIONS'),optTable,
+      para([run('')]),subtotalTable,
       secHdr('CDR STORAGE'),storageTable,
       secHdr('CDR FORMATS & TAX DATABASE'),cdrTable,
       secHdr('SETUP & CONVERSION FEES'),otTable(),

@@ -295,7 +295,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <input type="text" id="rv_company" placeholder="e.g. Acme Services, LLC" oninput="s.company=this.value;updateRevSub()">
           </div>
           <div class="field">
-            <label>Sales Rep Name</label>
+            <label>Sales Contact Name</label>
             <input type="text" id="rv_rep" placeholder="e.g. Robin Koontz" oninput="s.rep=this.value">
           </div>
         </div>
@@ -20848,7 +20848,7 @@ function buildAddendumCard(){
           <span class="hint">Named as "Licensee" throughout the addendum</span>
         </div>
         <div class="field">
-          <label>Sales Rep</label>
+          <label>Sales Contact</label>
           <input type="text" id="add_rep" value="${esc(s.rep)}" placeholder="Optional" oninput="s.rep=this.value">
         </div>
       </div>
@@ -21244,7 +21244,7 @@ function buildReview(){
         <tr><td>Licensee</td><td>${s.company?esc(s.company):'<span style="color:var(--text3)">not set</span>'}</td></tr>
         <tr><td>Effective Date</td><td>${s.addendumEffDate?fmtDate(s.addendumEffDate):'<span style="color:var(--text3)">blank line to fill in</span>'}</td></tr>
         ${s.addendumOrigDate?`<tr><td>Amends Agreement dated</td><td>${fmtDate(s.addendumOrigDate)}</td></tr>`:''}
-        ${s.rep?`<tr><td>Sales Rep</td><td>${esc(s.rep)}</td></tr>`:''}
+        ${s.rep?`<tr><td>Sales Contact</td><td>${esc(s.rep)}</td></tr>`:''}
       </table></div>
       <div class="rev-section"><h4>Updated Terms</h4>
         <div style="font-size:14px;line-height:1.6;color:var(--text2);white-space:pre-wrap">${s.addendumChanges?esc(s.addendumChanges):'<span style="color:var(--text3)">No updated terms entered.</span>'}</div>
@@ -21488,9 +21488,9 @@ async function buildDocx(){
         ]})
       )]})
     :new Table({width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,rows:[row(
-        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('COMPANY'),val(s.company),lbl('SALES REP'),val(s.rep)]}),
-        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('CONTACT'),val(s.contact),lbl('DATE'),blank()]}),
-        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('EMAIL'),val(s.email),lbl('TERM'),para([run(termLabel(),{size:14,bold:true,color:DARK})],{spacing:{after:120}})]})
+        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('COMPANY'),val(s.company),lbl('SALES CONTACT'),val(s.rep)]}),
+        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('CONTACT'),val(s.contact),lbl('CONTACT EMAIL'),val(s.email)]}),
+        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('DATE SIGNED'),blank(),lbl('TERM'),para([run(termLabel(),{size:14,bold:true,color:DARK})],{spacing:{after:120}})]})
       )]});
 
   // ── PSA product rows ─────────────────────────────────────────────────
@@ -21596,7 +21596,7 @@ async function buildDocx(){
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
       rows:[row(
         new TableCell({borders:bot(),shading:{fill:LGRAY,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
-          lbl('COMPANY'),val(s.company),lbl('SALES REP'),val(s.rep),
+          lbl('COMPANY'),val(s.company),lbl('SALES CONTACT'),val(s.rep),
         ]}),
         new TableCell({borders:bot(),shading:{fill:LGRAY,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
           lbl('EFFECTIVE DATE'),

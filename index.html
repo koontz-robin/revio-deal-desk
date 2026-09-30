@@ -250,14 +250,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="card-head">
         <div class="card-step">Step 3 of 5</div>
         <div class="card-title">Is this a Starter Pack?</div>
-        <div class="card-sub">7 Standard + 3 Field users, 15,000 Rev.ii Credits — $0 setup</div>
+        <div class="card-sub">Build the included users up to the $1,000 monthly minimum</div>
       </div>
       <div class="card-body">
         <div class="opt-grid cols2">
           <button class="opt-btn" onclick="pick('starterPack',true,this)">
             <span class="opt-icon">🚀</span>
             <span class="opt-label">Yes — Starter Pack</span>
-            <span class="opt-desc">Fixed bundle at the $1,000 monthly minimum</span>
+            <span class="opt-desc">Choose the included users, held at the $1,000 minimum</span>
           </button>
           <button class="opt-btn" onclick="pick('starterPack',false,this)">
             <span class="opt-icon">⚙️</span>
@@ -20543,7 +20543,7 @@ const s={
   rep:'',term:12,termUnit:'months',termTouched:false,address:'',city:'',state:'',zip:'',signor:'',email:'',
   taxProvider:'',
   // PSA
-  starterMin:1000,psaMin:1000,stdUsers:0,fieldUsers:0,reviiCredits:15000,
+  starterMin:1000,starterSeeded:false,psaMin:1000,stdUsers:0,fieldUsers:0,reviiCredits:15000,
   setupFee:0,migrationFee:0,
   // Billing
   billingVolume:0,billingMin:1000,billingRate:2.50,billingTier:'startup',
@@ -20682,7 +20682,10 @@ function buildStep5(){
     setTimeout(updateTigerpawRec,0);
     return;
   }
-  if(s.products==='psa'||s.products==='both') inner.appendChild(buildPsaCard());
+  if(s.products==='psa'||s.products==='both'){
+    inner.appendChild(buildPsaCard());
+    if(s.starterPack) setTimeout(updateStarterMix,0);
+  }
   if(s.products==='billing'||s.products==='both') inner.appendChild(buildBillingCard());
   if(s.products==='both'){
     // Pre-calculate so the input renders with the suggested value immediately
@@ -20699,7 +20702,11 @@ function buildPsaCard(){
   const card=document.createElement('div');
   card.className='card';
   const isPsa=s.products==='psa';
-  if(s.starterPack) s.starterMin=STARTER_MIN;
+  if(s.starterPack){
+    s.starterMin=STARTER_MIN;
+    // Start from the familiar 7 + 3, then let the rep change it.
+    if(!s.starterSeeded){s.starterSeeded=true;if(!s.stdUsers)s.stdUsers=7;if(!s.fieldUsers)s.fieldUsers=3;}
+  }
   card.innerHTML=`
     <div class="card-head">
       <div class="card-step">Step 4 of 5</div>
@@ -20709,7 +20716,7 @@ function buildPsaCard(){
       ${s.starterPack?`
         <div class="slabel">Monthly Minimum</div>
         <div class="callout info" style="margin-bottom:20px"><b>$1,000 / month</b> — Starter Pack minimum</div>
-        <div class="callout accent">Starter Pack includes 7 Standard users, 3 Field users, and 15,000 Rev.ii Credits at no additional charge.</div>
+        <div id="starterMix" class="callout accent"></div>
       `:`
         <div class="slabel">Monthly Minimum</div>
         <div class="fg g1" style="margin-bottom:4px">
@@ -20805,7 +20812,31 @@ function calcPsaFee(){
   const base=std*rate+field*30;
   return Math.ceil(base/50)*50;
 }
+function starterListValue(){
+  const std=s.stdUsers||0,field=s.fieldUsers||0;
+  return std*psaRate(std||1)+field*30;
+}
+
+function updateStarterMix(){
+  const el=document.getElementById('starterMix');
+  if(!el) return;
+  const std=s.stdUsers||0,field=s.fieldUsers||0;
+  const list=starterListValue(),gap=STARTER_MIN-list;
+  const parts=[];
+  if(std>0)parts.push(std+' Standard \u00d7 $'+psaRate(std));
+  if(field>0)parts.push(field+' Field \u00d7 $30');
+  if(s.reviiCredits>0)parts.push(s.reviiCredits.toLocaleString()+' Rev.ii Credits');
+  const tail=gap>0
+    ?`<span style="color:var(--text2)">${fmt(gap)} of room left under the ${fmt(STARTER_MIN)} minimum.</span>`
+    :gap===0
+      ?`<span style="color:#22C55E;font-weight:700">Exactly at the ${fmt(STARTER_MIN)} minimum.</span>`
+      :`<span style="color:#FCD34D;font-weight:700">${fmt(-gap)} over the ${fmt(STARTER_MIN)} minimum \u2014 consider a custom agreement.</span>`;
+  el.innerHTML=`<b>Included: ${parts.length?parts.join(' + '):'nothing yet'}</b>`
+    +`<br><span style="color:var(--text2);font-size:12px">${fmt(list)}/mo at list. ${tail}</span>`;
+}
+
 function updatePsaRec(){
+  updateStarterMix();
   const recEl=document.getElementById('psaMinRec');
   if(!recEl) return;
   const std=s.stdUsers||0,field=s.fieldUsers||0;
@@ -21304,7 +21335,8 @@ function buildReview(){
     const psaTotal=min;
     html+=`<div class="rev-section"><h4>New Rev.io Monthly Fees</h4><table class="rev-tbl">`;
     if(s.starterPack){
-      html+=`<tr><td>Starter Pack (7 Std + 3 Field + 15K Rev.ii Credits)</td><td>${fmt(psaTotal)}/mo</td></tr>`;
+      html+=`<tr><td>Starter Pack (${s.stdUsers||0} Std + ${s.fieldUsers||0} Field + ${(s.reviiCredits||0).toLocaleString()} Rev.ii Credits)</td><td>${fmt(psaTotal)}/mo</td></tr>`;
+      html+=`<tr class="sub"><td colspan="2">${fmt(starterListValue())}/mo at list against the ${fmt(STARTER_MIN)} minimum</td></tr>`;
     }else{
       if(s.stdUsers)html+=`<tr><td>Standard Users (${s.stdUsers} × $${rate})</td><td>${fmt(s.stdUsers*rate)}/mo</td></tr>`;
       if(s.fieldUsers)html+=`<tr><td>Field Users (${s.fieldUsers} × $30)</td><td>${fmt(s.fieldUsers*30)}/mo</td></tr>`;
@@ -21523,12 +21555,12 @@ async function buildDocx(){
     const rows=[];
     const rate=psaRate(s.stdUsers||1);
     if(s.starterPack){
-      rows.push(row(cel('Standard Users — 7 included',{bold:true}),cel('7',{align:AlignmentType.CENTER}),cel('15 / user',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
-      rows.push(row(cel('Field Users — 3 included',{bold:true}),cel('3',{align:AlignmentType.CENTER}),cel('0 / user',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
-      rows.push(row(cel('Rev.ii Credits — '+(s.reviiCredits||15000).toLocaleString()+' included',{bold:true}),cel(''),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
+      rows.push(row(cel('Standard Users',{bold:true}),cel(String(s.stdUsers||0),{align:AlignmentType.CENTER}),cel('$'+rate+' / user',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
+      rows.push(row(cel('Field Users',{bold:true}),cel(String(s.fieldUsers||0),{align:AlignmentType.CENTER}),cel('$30 / user',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
+      rows.push(row(cel('Rev.ii Credits',{bold:true}),cel((s.reviiCredits||0).toLocaleString(),{align:AlignmentType.CENTER}),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
     }else{
       if(s.stdUsers)rows.push(row(cel('Standard Users',{bold:true}),cel(String(s.stdUsers),{align:AlignmentType.CENTER}),cel('$'+rate+' / user',{align:AlignmentType.CENTER}),cel(fmt(s.stdUsers*rate),{align:AlignmentType.RIGHT})));
-      if(s.fieldUsers)rows.push(row(cel('Field Users',{bold:true}),cel(String(s.fieldUsers),{align:AlignmentType.CENTER}),cel('0 / user',{align:AlignmentType.CENTER}),cel(fmt(s.fieldUsers*30),{align:AlignmentType.RIGHT})));
+      if(s.fieldUsers)rows.push(row(cel('Field Users',{bold:true}),cel(String(s.fieldUsers),{align:AlignmentType.CENTER}),cel('$30 / user',{align:AlignmentType.CENTER}),cel(fmt(s.fieldUsers*30),{align:AlignmentType.RIGHT})));
       if(s.reviiCredits)rows.push(row(cel('Rev.ii Credits',{bold:true}),cel(s.reviiCredits.toLocaleString(),{align:AlignmentType.CENTER}),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
     }
     return rows;

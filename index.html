@@ -21774,15 +21774,22 @@ async function buildDocx(){
       )]
     });
 
-    // Monthly license fee plus whatever Rev.io Options are switched on.
+    // Monthly license fee plus Rev.io Options and any additional CDR formats.
     const optionsTotal=enabledOpts.reduce((sum,o)=>sum+(s[o.key+'Rate']||0),0);
-    const monthlySubtotal=(s.billingMin||0)+optionsTotal;
+    const cdrExtraFee=(s.cdrExtra||0)*100;
+    const monthlySubtotal=(s.billingMin||0)+optionsTotal+cdrExtraFee;
+    const subtotalBits=[];
+    if(optionsTotal>0) subtotalBits.push('Rev.io Options '+fmt(optionsTotal));
+    if(cdrExtraFee>0) subtotalBits.push('Additional CDR Formats ('+s.cdrExtra+' × $100) '+fmt(cdrExtraFee));
+    const subtotalMakeup=subtotalBits.length
+      ?'Monthly License Fee '+fmt(s.billingMin||0)+' plus '+subtotalBits.join(' plus ')+'.'
+      :'Monthly License Fee.';
     const subtotalTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
       rows:[row(
         new TableCell({width:{size:7500,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
           para([run('MONTHLY SUBTOTAL',{bold:true,size:13,color:DARK})]),
-          para([run('Monthly License Fee'+(optionsTotal>0?' '+fmt(s.billingMin||0)+' plus Rev.io Options '+fmt(optionsTotal):'')+'.',{size:11,color:MGRAY})]),
+          para([run(subtotalMakeup,{size:11,color:MGRAY})]),
         ]}),
         new TableCell({width:{size:3300,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
           para([run(fmt(monthlySubtotal)+' / month',{bold:true,size:15,color:DARK})],{alignment:AlignmentType.RIGHT}),

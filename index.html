@@ -288,6 +288,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
       <div class="card-body" id="revBody"></div>
       <div class="card-body" style="border-top:1px solid var(--border);margin-top:0;padding-top:16px;">
+        <div class="slabel" style="margin-bottom:12px;">CUSTOMER DETAILS <span style="color:var(--text3);font-weight:400;">(Optional — appears on the generated document)</span></div>
+        <div class="fg g2">
+          <div class="field">
+            <label>Company Name</label>
+            <input type="text" id="rv_company" placeholder="e.g. Acme Services, LLC" oninput="s.company=this.value;updateRevSub()">
+          </div>
+          <div class="field">
+            <label>Sales Rep Name</label>
+            <input type="text" id="rv_rep" placeholder="e.g. Robin Koontz" oninput="s.rep=this.value">
+          </div>
+        </div>
+        <div class="fg g2" style="margin-bottom:0">
+          <div class="field">
+            <label>Contact Name</label>
+            <input type="text" id="rv_contact" placeholder="e.g. Dana Reyes" oninput="s.contact=this.value">
+          </div>
+          <div class="field">
+            <label>Contact Email</label>
+            <input type="email" id="rv_email" placeholder="e.g. dana@acme.com" oninput="s.email=this.value">
+          </div>
+        </div>
+      </div>
+      <div class="card-body" style="border-top:1px solid var(--border);margin-top:0;padding-top:16px;">
         <div class="slabel" style="margin-bottom:8px;">PROSPECT LOGO <span style="color:var(--muted);font-weight:400;">(Optional — appears in generated document)</span></div>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
           <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;background:var(--surface);border:1px dashed var(--border);border-radius:8px;padding:10px 18px;font-size:13px;color:var(--muted);transition:border-color .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
@@ -21193,16 +21216,27 @@ function calcAddonTotal(){
   return REV_OPTIONS.reduce((sum,o)=>sum+(s[o.key]?(s[o.key+'Rate']||0):0),0)+(s.cdrExtra||0)*100;
 }
 
+function updateRevSub(){
+  const sub=document.getElementById('revSub');
+  if(!sub) return;
+  sub.textContent=s.docType==='addendum'
+    ?`${s.company||'Licensee'} · Addendum`
+    :`${s.company||'Customer'} · ${docTypeLabel()} · ${productLabel()}`;
+}
+
 function buildReview(){
   const body=document.getElementById('revBody');
-  const sub=document.getElementById('revSub');
   let html='';
+
+  // Reflect anything already captured on an earlier card.
+  [['rv_company',s.company],['rv_rep',s.rep],['rv_contact',s.contact],['rv_email',s.email]]
+    .forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.value=v||'';});
+  updateRevSub();
 
   const addonTotal=calcAddonTotal();
 
   // An addendum stands alone: parties, the amendment, signatures. No pricing.
   if(s.docType==='addendum'){
-    sub.textContent=`${s.company||'Licensee'} · Addendum`;
     const miss=[];
     if(!s.company)miss.push('Licensee name');
     if(!s.addendumChanges)miss.push('updated terms');
@@ -21219,7 +21253,6 @@ function buildReview(){
     return;
   }
 
-  sub.textContent=`${s.company||'Customer'} · ${docTypeLabel()} · ${productLabel()}`;
 
   // Tigerpaw renewal section
   if(s.products==='tigerpaw'){
@@ -21445,19 +21478,19 @@ async function buildDocx(){
     ?new Table({width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,rows:[row(
         new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(200,200,240,240),children:[
           para([run('PREPARED FOR',{size:13,color:MGRAY,bold:true})],{spacing:{after:60}}),
-          para([run(' ',{size:28,color:NAVY})],{spacing:{after:60}}),
-          para([run(' ',{size:14})]),
+          para([run(s.company||' ',{size:28,color:NAVY,bold:!!s.company})],{spacing:{after:60}}),
+          para([run([s.contact,s.email].filter(Boolean).join('  ·  ')||' ',{size:14,color:DARK})]),
         ]}),
         new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(200,200,240,240),children:[
           para([run('REV.IO SALES CONTACT',{size:13,color:MGRAY,bold:true})],{spacing:{after:60}}),
-          para([run(' ',{size:28,color:NAVY})],{spacing:{after:60}}),
+          para([run(s.rep||' ',{size:28,color:NAVY,bold:!!s.rep})],{spacing:{after:60}}),
           para([run(' ',{size:14})]),
         ]})
       )]})
     :new Table({width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,rows:[row(
-        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('COMPANY'),val(s.company),lbl('SALES REP'),blank()]}),
+        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('COMPANY'),val(s.company),lbl('SALES REP'),val(s.rep)]}),
         new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('CONTACT'),val(s.contact),lbl('DATE'),blank()]}),
-        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('EMAIL'),blank(),lbl('TERM'),para([run(termLabel(),{size:14,bold:true,color:DARK})],{spacing:{after:120}})]})
+        new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[lbl('EMAIL'),val(s.email),lbl('TERM'),para([run(termLabel(),{size:14,bold:true,color:DARK})],{spacing:{after:120}})]})
       )]});
 
   // ── PSA product rows ─────────────────────────────────────────────────

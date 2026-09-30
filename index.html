@@ -21537,6 +21537,63 @@ async function buildDocx(){
   // Small print under the monthly fees.
   const arrearsNote=()=>para([run(ARREARS_NOTE,{size:12,color:MGRAY,italics:true})],{spacing:{before:60,after:120}});
 
+  // CDR storage, its estimated charge, and the formats/tax block. Shared by the
+  // Communications Billing document and the combined agreement.
+  function cdrSections(){
+      const storageTable=new Table({
+        width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
+        rows:[
+          row(
+            new TableCell({width:{size:PAGE_W/2,type:WidthType.DXA},borders:bot(),shading:s.cdrStorage==='18mo'?{fill:MGREEN,type:ShadingType.CLEAR}:undefined,margins:m(),children:[
+              para([run('18 Months Production',{bold:s.cdrStorage==='18mo',size:14})]),
+              para([run('$0.0010 / CDR',{size:13,color:MGRAY})]),
+            ]}),
+            new TableCell({width:{size:PAGE_W/2,type:WidthType.DXA},borders:bot(),shading:s.cdrStorage==='6mo'?{fill:MGREEN,type:ShadingType.CLEAR}:undefined,margins:m(),children:[
+              para([run('6 Months Production',{bold:s.cdrStorage==='6mo',size:14})]),
+              para([run('$0.0003 / CDR',{size:13,color:MGRAY})]),
+            ]}),
+          )
+        ]
+      });
+
+      const chargeTable=s.cdrVolume>0?new Table({
+        width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
+        rows:[row(
+          new TableCell({width:{size:7500,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
+            para([run('ESTIMATED CDR STORAGE',{bold:true,size:13,color:DARK})]),
+            para([run(s.cdrVolume.toLocaleString()+' CDRs / month \u00d7 $'+cdrRate().toFixed(4)+' per CDR ('
+              +(s.cdrStorage==='18mo'?'18 months':'6 months')+' production). Estimate only; billed on actual volume.',
+              {size:11,color:MGRAY})]),
+          ]}),
+          new TableCell({width:{size:3300,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
+            para([run(fmtDec(cdrStorageFee())+' / month',{bold:true,size:15,color:DARK})],{alignment:AlignmentType.RIGHT}),
+          ]}),
+        )]
+      }):null;
+
+      const formatsTable=new Table({
+        width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
+        rows:[row(
+          new TableCell({borders:bot(),shading:{fill:CDR,type:ShadingType.CLEAR},margins:m(),children:[
+            para([run('CDR FORMATS',{bold:true,size:11,color:MGRAY})]),
+            para([run('Importers only valid before activation',{size:11,color:MGRAY,italics:true})]),
+            para([run('Included: '+(s.cdrFormats||0)+' formats (no charge)',{size:14})]),
+            para([run('Additional: '+(s.cdrExtra||0)+' × $100 / month',{size:14})]),
+          ]}),
+          new TableCell({borders:bot(),margins:m(),children:[
+            para([run('TAX DATABASE',{bold:true,size:11,color:MGRAY})]),
+            para([run(s.taxProvider||'Not selected',{bold:true,size:14})]),
+          ]}),
+        )]
+      });
+
+    return [
+      secHdr('CDR STORAGE'),storageTable,
+      ...(chargeTable?[para([run('')]),chargeTable]:[]),
+      secHdr('CDR FORMATS & TAX DATABASE'),formatsTable,
+    ];
+  }
+
   // ── One-time fees table ──────────────────────────────────────────────
   function otTable(){
     const ot=(s.setupFee||0)+(s.migrationFee||0);
@@ -21822,53 +21879,6 @@ async function buildDocx(){
       )]
     });
 
-    const storageTable=new Table({
-      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
-      rows:[
-        row(
-          new TableCell({width:{size:PAGE_W/2,type:WidthType.DXA},borders:bot(),shading:s.cdrStorage==='18mo'?{fill:MGREEN,type:ShadingType.CLEAR}:undefined,margins:m(),children:[
-            para([run('18 Months Production',{bold:s.cdrStorage==='18mo',size:14})]),
-            para([run('$0.0010 / CDR',{size:13,color:MGRAY})]),
-          ]}),
-          new TableCell({width:{size:PAGE_W/2,type:WidthType.DXA},borders:bot(),shading:s.cdrStorage==='6mo'?{fill:MGREEN,type:ShadingType.CLEAR}:undefined,margins:m(),children:[
-            para([run('6 Months Production',{bold:s.cdrStorage==='6mo',size:14})]),
-            para([run('$0.0003 / CDR',{size:13,color:MGRAY})]),
-          ]}),
-        )
-      ]
-    });
-
-    const cdrChargeTable=s.cdrVolume>0?new Table({
-      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
-      rows:[row(
-        new TableCell({width:{size:7500,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
-          para([run('ESTIMATED CDR STORAGE',{bold:true,size:13,color:DARK})]),
-          para([run(s.cdrVolume.toLocaleString()+' CDRs / month \u00d7 $'+cdrRate().toFixed(4)+' per CDR ('
-            +(s.cdrStorage==='18mo'?'18 months':'6 months')+' production). Estimate only; billed on actual volume.',
-            {size:11,color:MGRAY})]),
-        ]}),
-        new TableCell({width:{size:3300,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
-          para([run(fmtDec(cdrStorageFee())+' / month',{bold:true,size:15,color:DARK})],{alignment:AlignmentType.RIGHT}),
-        ]}),
-      )]
-    }):null;
-
-    const cdrTable=new Table({
-      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
-      rows:[row(
-        new TableCell({borders:bot(),shading:{fill:CDR,type:ShadingType.CLEAR},margins:m(),children:[
-          para([run('CDR FORMATS',{bold:true,size:11,color:MGRAY})]),
-          para([run('Importers only valid before activation',{size:11,color:MGRAY,italics:true})]),
-          para([run('Included: '+(s.cdrFormats||0)+' formats (no charge)',{size:14})]),
-          para([run('Additional: '+(s.cdrExtra||0)+' × 00 / month',{size:14})]),
-        ]}),
-        new TableCell({borders:bot(),margins:m(),children:[
-          para([run('TAX DATABASE',{bold:true,size:11,color:MGRAY})]),
-          para([run(s.taxProvider||'Not selected',{bold:true,size:14})]),
-        ]}),
-      )]
-    });
-
     const children=[
       hdrTable,para([run('')]),custTable,
       secHdr('REV.IO MONTHLY LICENSING FEE'),feeTable,
@@ -21878,9 +21888,7 @@ async function buildDocx(){
       arrearsNote(),
       secHdr('REV.IO OPTIONS'),optTable,
       para([run('')]),subtotalTable,
-      secHdr('CDR STORAGE'),storageTable,
-      ...(cdrChargeTable?[para([run('')]),cdrChargeTable]:[]),
-      secHdr('CDR FORMATS & TAX DATABASE'),cdrTable,
+      ...cdrSections(),
       secHdr('SETUP & CONVERSION FEES'),otTable(),
       ...termsAndSig(),
     ];
@@ -21922,6 +21930,7 @@ async function buildDocx(){
     return Packer.toBlob(new Document({sections:[{...pageProps,children:[
       hdrTable,para([run('')]),custTable,
       secHdr('MONTHLY LICENSE FEES'),minTable,para([run('')]),prodTable,arrearsNote(),
+      ...cdrSections(),
       secHdr('ONE-TIME FEES'),otTable(),
       ...termsAndSig()
     ]}]}));

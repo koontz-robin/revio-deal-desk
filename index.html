@@ -235,7 +235,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           </button>
           <button class="opt-btn" onclick="pick('products','billing',this)">
             <span class="opt-icon">💰</span>
-            <span class="opt-label">Communications Billing</span>
+            <span class="opt-label">Classic Rev.io</span>
             <span class="opt-desc">Communications billing platform</span>
           </button>
         </div>
@@ -20787,9 +20787,9 @@ function updateCombinedMin(){
   recEl.style.display='block';
   const parts=[];
   if(psaFee>0) parts.push(`New Rev.io ${fmt(psaFee)}`);
-  if(billingFee>0) parts.push(`Billing ${fmt(billingFee)}`);
+  if(billingFee>0) parts.push(`Classic Rev.io ${fmt(billingFee)}`);
   if(addons>0) parts.push(`Add-ons ${fmt(addons)}`);
-  recEl.innerHTML=`<b>Suggested Combined Minimum: ${fmt(rec)}/mo</b>${parts.length?' — '+parts.join(' + '):''}<br><span style="color:var(--text2);font-size:12px">Updates as you adjust New Rev.io and Billing fields above.</span>`;
+  recEl.innerHTML=`<b>Suggested Combined Minimum: ${fmt(rec)}/mo</b>${parts.length?' — '+parts.join(' + '):''}<br><span style="color:var(--text2);font-size:12px">Updates as you adjust New Rev.io and Classic Rev.io fields above.</span>`;
 }
 
 function buildAddendumCard(){
@@ -20985,7 +20985,7 @@ function buildCombinedCard(){
           <div id="combinedMinRec" class="callout info" style="display:none;margin:0 0 8px 0"></div>
           <label>Combined Monthly Minimum ($)</label>
           <input type="number" id="combined_min_input" value="${s.combinedMin}" min="0" oninput="s.combinedMin=parseFloat(this.value)||0">
-          <span class="hint">New Rev.io + Billing — override if needed</span>
+          <span class="hint">New Rev.io + Classic Rev.io — override if needed</span>
         </div>
       </div>
     </div>`;
@@ -20999,7 +20999,7 @@ function buildBillingCard(){
   card.innerHTML=`
     <div class="card-head">
       <div class="card-step">${isBilling?'Step 5 of 6':''}</div>
-      <div class="card-title">${isBilling?'Billing Configuration':'Billing — Part of Combined Agreement'}</div>
+      <div class="card-title">${isBilling?'Classic Rev.io Configuration':'Classic Rev.io — Part of Combined Agreement'}</div>
     </div>
     <div class="card-body">
       <div class="slabel">Monthly Billing Volume</div>
@@ -21103,7 +21103,7 @@ function buildBillingCard(){
             <label>Combined Monthly Minimum ($)</label>
             <div id="psaMinRec" class="callout info" style="display:none;margin:0 0 8px 0"></div>
             <input type="number" id="combined_min_input" value="${s.combinedMin}" min="0" oninput="s.combinedMin=parseFloat(this.value)||0">
-            <span class="hint">New Rev.io + Billing fees — override if needed</span>
+            <span class="hint">New Rev.io + Classic Rev.io fees — override if needed</span>
           </div>
         </div>
       `:''}
@@ -21153,7 +21153,7 @@ function docTypeLabel(){
 function productLabel(){
   return s.products==='psa'?'New Rev.io'
     :s.products==='tigerpaw'?'Tigerpaw'
-    :s.products==='billing'?'Billing':'Rev.io';
+    :s.products==='billing'?'Classic Rev.io':'Rev.io';
 }
 
 function calcAddonTotal(){
@@ -21226,7 +21226,7 @@ function buildReview(){
   // Billing section
   if(s.products!=='psa'&&s.products!=='tigerpaw'){
     const addons=REV_OPTIONS.filter(o=>s[o.key]);
-    html+=`<div class="rev-section"><h4>Billing Monthly Fees</h4><table class="rev-tbl">`;
+    html+=`<div class="rev-section"><h4>Classic Rev.io Monthly Fees</h4><table class="rev-tbl">`;
     html+=`<tr><td>Monthly Minimum</td><td>${fmt(s.billingMin)}/mo</td></tr>`;
     if(s.billingRate)html+=`<tr class="sub"><td colspan="2">or ${s.billingRate}% of Monthly Licensee Billing — whichever is greater</td></tr>`;
     if(addons.length)html+=`<tr><td>Rev.io Options (${addons.map(o=>o.label).join(', ')})</td><td>${fmt(addons.reduce((sum,o)=>sum+(s[o.key+'Rate']||0),0))}/mo</td></tr>`;
@@ -21771,7 +21771,7 @@ async function buildDocx(){
       rows:[
         row(hc('INCLUDED PRODUCTS',COL4[0]),hc('QUANTITY',COL4[1]),hc('RATE',COL4[2]),hc('TOTAL',COL4[3])),
         ...psaRows(),
-        row(cel('Communications Billing',{bold:true}),cel(fmt(s.billingMin||0),{align:AlignmentType.CENTER}),cel((s.billingRate||0)+'%',{align:AlignmentType.CENTER}),cel(fmt(s.billingMin||0),{align:AlignmentType.RIGHT})),
+        row(cel('Classic Rev.io',{bold:true}),cel(fmt(s.billingMin||0),{align:AlignmentType.CENTER}),cel((s.billingRate||0)+'%',{align:AlignmentType.CENTER}),cel(fmt(s.billingMin||0),{align:AlignmentType.RIGHT})),
         ...enabledOpts.map(o=>row(cel(o.label,{bold:true}),cel('1',{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.RIGHT}))),
         row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT})),
       ]

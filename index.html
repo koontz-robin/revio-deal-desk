@@ -20455,6 +20455,8 @@ window._docxReady = Promise.resolve();
 <script>
 // ── Pricing data ────────────────────────────────────────────────────────
 const STARTER_MIN=1000;
+// Starter Pack default mix — 8 × $110 + 4 × $30 = the $1,000 minimum exactly.
+const STARTER_STD=8,STARTER_FIELD=4;
 // Per-CDR storage rates, keyed by retention tier.
 const CDR_STORAGE_RATES={'18mo':0.0010,'6mo':0.0003};
 function cdrRate(){return CDR_STORAGE_RATES[s.cdrStorage]||0;}
@@ -20704,8 +20706,8 @@ function buildPsaCard(){
   const isPsa=s.products==='psa';
   if(s.starterPack){
     s.starterMin=STARTER_MIN;
-    // Start from the familiar 7 + 3, then let the rep change it.
-    if(!s.starterSeeded){s.starterSeeded=true;if(!s.stdUsers)s.stdUsers=7;if(!s.fieldUsers)s.fieldUsers=3;}
+    // Default mix lands exactly on the minimum; the rep can change either count.
+    if(!s.starterSeeded){s.starterSeeded=true;if(!s.stdUsers)s.stdUsers=STARTER_STD;if(!s.fieldUsers)s.fieldUsers=STARTER_FIELD;}
   }
   card.innerHTML=`
     <div class="card-head">

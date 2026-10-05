@@ -103,7 +103,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .tog-label .tl{font-size:15px;font-weight:600;color:var(--text)}
 .tog-label .td{font-size:13px;color:var(--text2)}
 .tog-rate{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text2)}
-.tog-rate input{width:72px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);text-align:right}
+.tog-rate input{width:72px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);background:var(--surface);color-scheme:dark;text-align:right}
 .tog-rate input:focus{outline:none;border-color:var(--accent)}
 .toggle-sw{position:relative;width:38px;height:22px;flex-shrink:0}
 .toggle-sw input{opacity:0;width:0;height:0}
@@ -20522,14 +20522,24 @@ const BILLING_TIERS=[
   {id:'enterprise',name:'Enterprise',min:5000, rate:null, cdrFree:5, setup:15000},
 ];
 const REV_OPTIONS=[
-  {key:'agentBundle',    label:'Agent Bundle',      billingRate:500,  combinedRate:250},
-  {key:'enterprisePortal',label:'Enterprise Portal', billingRate:1000, combinedRate:1000},
-  {key:'syncFormat',     label:'SYNC Format',        billingRate:500,  combinedRate:500},
-  {key:'analytics',      label:'Analytics',          billingRate:250,  combinedRate:250},
-  {key:'qbo',            label:'QuickBooks Online',  billingRate:250,  combinedRate:250},
-  {key:'connectwise',    label:'ConnectWise',        billingRate:250,  combinedRate:250},
-  {key:'netsuite',       label:'NetSuite',           billingRate:250,  combinedRate:250},
+  {key:'agentBundle',    label:'Agent Bundle',      billingRate:500,  combinedRate:250,  desc:'Agent management and commissioning tools.'},
+  {key:'enterprisePortal',label:'Enterprise Portal', billingRate:1000, combinedRate:1000, desc:'Customer-facing self-service portal.'},
+  {key:'syncFormat',     label:'SYNC Format',        billingRate:500,  combinedRate:500,  desc:'SYNC-format data export.'},
+  {key:'analytics',      label:'Analytics',          billingRate:250,  combinedRate:250,  desc:'Reporting and analytics module.'},
+  {key:'qbo',            label:'QuickBooks Online',  billingRate:250,  combinedRate:250,  desc:'Integration with QuickBooks Online.'},
+  {key:'connectwise',    label:'ConnectWise',        billingRate:250,  combinedRate:250,  desc:'Integration with ConnectWise.'},
+  {key:'netsuite',       label:'NetSuite',           billingRate:250,  combinedRate:250,  desc:'Integration with NetSuite.'},
 ];
+
+// Printed under each line item on quotes only; agreements stay terse. These say
+// what the line covers rather than making claims — edit the generated document
+// if a particular deal needs different wording.
+const LINE_DESC={
+  stdUsers:'Named users with full platform access.',
+  fieldUsers:'Named users with field service access.',
+  reviiCredits:'Included Rev.ii credit allowance; usage beyond it is billed per credit.',
+  billing:'Rating, invoicing and tax for communications services.',
+};
 
 function psaRate(n){for(const t of PSA_TIERS)if(n<=t.max)return t.rate;return 90;}
 function psaTierLabel(n){let i=0;for(const t of PSA_TIERS){if(n<=t.max)return PSA_TIER_LABELS[i];i++;}return '51+ users';}
@@ -21544,6 +21554,14 @@ async function buildDocx(){
     });
   };
 
+  // Quotes carry a line of description under each item; agreements stay terse.
+  const itemCell=(label,desc,opts={})=>cel(
+    s.docType==='quote'&&desc
+      ?[para([run(label,{bold:true,size:14,color:DARK})]),
+        para([run(desc,{size:11,color:MGRAY,italics:true})])]
+      :label,
+    {bold:true,...opts});
+
   // Column header: no fill, MGRAY, small, bold
   const hc=(text,width)=>cel(text,{bold:true,color:MGRAY,width,sz:11});
   const row=(...cells)=>new TableRow({children:cells});
@@ -21594,7 +21612,7 @@ async function buildDocx(){
         new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(200,200,240,240),children:[
           para([run('PREPARED FOR',{size:13,color:MGRAY,bold:true})],{spacing:{after:60}}),
           para([run(s.company||' ',{size:28,color:NAVY,bold:!!s.company})],{spacing:{after:60}}),
-          para([run([s.contact,s.email].filter(Boolean).join('  ·  ')||' ',{size:14,color:DARK})]),
+          para([run(' ',{size:14})]),
         ]}),
         new TableCell({borders:bot(),shading:{fill:custFill,type:ShadingType.CLEAR},margins:m(200,200,240,240),children:[
           para([run('REV.IO SALES CONTACT',{size:13,color:MGRAY,bold:true})],{spacing:{after:60}}),
@@ -21613,13 +21631,13 @@ async function buildDocx(){
     const rows=[];
     const rate=psaRate(s.stdUsers||1);
     if(s.starterPack){
-      rows.push(row(cel('Standard Users',{bold:true}),cel(String(s.stdUsers||0),{align:AlignmentType.CENTER}),cel('$'+rate+' / user',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
-      rows.push(row(cel('Field Users',{bold:true}),cel(String(s.fieldUsers||0),{align:AlignmentType.CENTER}),cel('$30 / user',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
-      rows.push(row(cel('Rev.ii Credits',{bold:true}),cel((s.reviiCredits||0).toLocaleString(),{align:AlignmentType.CENTER}),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
+      rows.push(row(itemCell('Standard Users',LINE_DESC.stdUsers),cel(String(s.stdUsers||0),{align:AlignmentType.CENTER}),cel('$'+rate+' / user',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
+      rows.push(row(itemCell('Field Users',LINE_DESC.fieldUsers),cel(String(s.fieldUsers||0),{align:AlignmentType.CENTER}),cel('$30 / user',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
+      rows.push(row(itemCell('Rev.ii Credits',LINE_DESC.reviiCredits),cel((s.reviiCredits||0).toLocaleString(),{align:AlignmentType.CENTER}),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
     }else{
-      if(s.stdUsers)rows.push(row(cel('Standard Users',{bold:true}),cel(String(s.stdUsers),{align:AlignmentType.CENTER}),cel('$'+rate+' / user',{align:AlignmentType.CENTER}),cel(fmt(s.stdUsers*rate),{align:AlignmentType.RIGHT})));
-      if(s.fieldUsers)rows.push(row(cel('Field Users',{bold:true}),cel(String(s.fieldUsers),{align:AlignmentType.CENTER}),cel('$30 / user',{align:AlignmentType.CENTER}),cel(fmt(s.fieldUsers*30),{align:AlignmentType.RIGHT})));
-      if(s.reviiCredits)rows.push(row(cel('Rev.ii Credits',{bold:true}),cel(s.reviiCredits.toLocaleString(),{align:AlignmentType.CENTER}),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
+      if(s.stdUsers)rows.push(row(itemCell('Standard Users',LINE_DESC.stdUsers),cel(String(s.stdUsers),{align:AlignmentType.CENTER}),cel('$'+rate+' / user',{align:AlignmentType.CENTER}),cel(fmt(s.stdUsers*rate),{align:AlignmentType.RIGHT})));
+      if(s.fieldUsers)rows.push(row(itemCell('Field Users',LINE_DESC.fieldUsers),cel(String(s.fieldUsers),{align:AlignmentType.CENTER}),cel('$30 / user',{align:AlignmentType.CENTER}),cel(fmt(s.fieldUsers*30),{align:AlignmentType.RIGHT})));
+      if(s.reviiCredits)rows.push(row(itemCell('Rev.ii Credits',LINE_DESC.reviiCredits),cel(s.reviiCredits.toLocaleString(),{align:AlignmentType.CENTER}),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
     }
     return rows;
   }
@@ -21710,8 +21728,8 @@ async function buildDocx(){
           cel(fmt(s.migrationFee||0),{width:COL4[3],align:AlignmentType.RIGHT})
         ),
         row(
-          cel('ONE-TIME TOTAL',{colspan:3,bold:true,color:DARK,sz:13}),
-          cel(fmt(ot),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT})
+          cel('ONE-TIME TOTAL',{colspan:3,bold:true,color:DARK,sz:13,fill:LGRAY}),
+          cel(fmt(ot),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT,fill:LGRAY})
         ),
       ]
     });
@@ -21826,24 +21844,24 @@ async function buildDocx(){
       rows:[
         row(hc('INCLUDED PRODUCT',COL4[0]),hc('QUANTITY',COL4[1]),hc('ADDITIONAL USER RATE',COL4[2]),hc('TOTAL',COL4[3])),
         row(
-          cel('Standard Users',{bold:true,width:COL4[0]}),
+          itemCell('Standard Users',LINE_DESC.stdUsers,{width:COL4[0]}),
           cel(String(s.tpStdUsers||0),{width:COL4[1],align:AlignmentType.CENTER}),
           cel(fmtDec(s.tpStdOverage||0)+' / user',{width:COL4[2],align:AlignmentType.CENTER}),
           cel('Included',{width:COL4[3],align:AlignmentType.RIGHT})
         ),
         row(
-          cel('Field Users',{bold:true,width:COL4[0]}),
+          itemCell('Field Users',LINE_DESC.fieldUsers,{width:COL4[0]}),
           cel(String(s.tpFieldUsers||0),{width:COL4[1],align:AlignmentType.CENTER}),
           cel(fmtDec(s.tpFieldOverage||0)+' / user',{width:COL4[2],align:AlignmentType.CENTER}),
           cel('Included',{width:COL4[3],align:AlignmentType.RIGHT})
         ),
         row(
-          cel('Rev.ii Credits',{bold:true,width:COL4[0]}),
+          itemCell('Rev.ii Credits',LINE_DESC.reviiCredits,{width:COL4[0]}),
           cel((s.reviiCredits||0).toLocaleString(),{width:COL4[1],align:AlignmentType.CENTER}),
           cel('$0.01 / credit',{width:COL4[2],align:AlignmentType.CENTER}),
           cel('Included',{width:COL4[3],align:AlignmentType.RIGHT})
         ),
-        row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13}),cel(fmtDec(min),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT})),
+        row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13,fill:LGRAY}),cel(fmtDec(min),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT,fill:LGRAY})),
       ]
     });
 
@@ -21893,7 +21911,7 @@ async function buildDocx(){
       rows:[
         row(hc(s.starterPack?'INCLUDED PRODUCT':'ITEM',COL4[0]),hc('QUANTITY',COL4[1]),hc('OVERAGE RATE',COL4[2]),hc('TOTAL',COL4[3])),
         ...psaRows(),
-        row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT})),
+        row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13,fill:LGRAY}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT,fill:LGRAY})),
       ]
     });
 
@@ -21931,16 +21949,22 @@ async function buildDocx(){
       rows:[row(
         new TableCell({borders:bot(),margins:m(),children:[
           para([run('FEATURE BUNDLES',{bold:true,size:11,color:MGRAY})]),
-          ...['agentBundle','enterprisePortal','syncFormat','analytics'].map(k=>{
+          ...['agentBundle','enterprisePortal','syncFormat','analytics'].flatMap(k=>{
             const o=REV_OPTIONS.find(r=>r.key===k);
-            return para([run(o.label+'   ',{bold:true,size:14}),run(s[k]?fmt(s[k+'Rate']||0)+' / month':'Not included',{size:14,color:s[k]?DARK:MGRAY,italics:!s[k]})]);
+            const line=para([run(o.label+'   ',{bold:true,size:14}),run(s[k]?fmt(s[k+'Rate']||0)+' / month':'Not included',{size:14,color:s[k]?DARK:MGRAY,italics:!s[k]})]);
+            return s.docType==='quote'&&o.desc
+              ?[line,para([run(o.desc,{size:11,color:MGRAY,italics:true})],{spacing:{after:60}})]
+              :[line];
           })
         ]}),
         new TableCell({borders:bot(),margins:m(),children:[
           para([run('INTEGRATIONS',{bold:true,size:11,color:MGRAY})]),
-          ...['qbo','connectwise','netsuite'].map(k=>{
+          ...['qbo','connectwise','netsuite'].flatMap(k=>{
             const o=REV_OPTIONS.find(r=>r.key===k);
-            return para([run(o.label+'   ',{bold:true,size:14}),run(s[k]?fmt(s[k+'Rate']||0)+' / month':'Not included',{size:14,color:s[k]?DARK:MGRAY,italics:!s[k]})]);
+            const line=para([run(o.label+'   ',{bold:true,size:14}),run(s[k]?fmt(s[k+'Rate']||0)+' / month':'Not included',{size:14,color:s[k]?DARK:MGRAY,italics:!s[k]})]);
+            return s.docType==='quote'&&o.desc
+              ?[line,para([run(o.desc,{size:11,color:MGRAY,italics:true})],{spacing:{after:60}})]
+              :[line];
           })
         ]}),
       )]
@@ -21959,11 +21983,11 @@ async function buildDocx(){
     const subtotalTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
       rows:[row(
-        new TableCell({width:{size:7500,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
+        new TableCell({width:{size:7500,type:WidthType.DXA},borders:bot(),shading:{fill:LGRAY,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
           para([run('MONTHLY SUBTOTAL',{bold:true,size:13,color:DARK})]),
           para([run(subtotalMakeup,{size:11,color:MGRAY})]),
         ]}),
-        new TableCell({width:{size:3300,type:WidthType.DXA},borders:bot(),margins:m(120,120,160,160),children:[
+        new TableCell({width:{size:3300,type:WidthType.DXA},borders:bot(),shading:{fill:LGRAY,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
           para([run(fmt(monthlySubtotal)+' / month',{bold:true,size:15,color:DARK})],{alignment:AlignmentType.RIGHT}),
         ]}),
       )]
@@ -22011,9 +22035,9 @@ async function buildDocx(){
       rows:[
         row(hc('INCLUDED PRODUCTS',COL4[0]),hc('QUANTITY',COL4[1]),hc('RATE',COL4[2]),hc('TOTAL',COL4[3])),
         ...psaRows(),
-        row(cel('Communications Billing',{bold:true}),cel(fmt(s.billingMin||0),{align:AlignmentType.CENTER}),cel((s.billingRate||0)+'%',{align:AlignmentType.CENTER}),cel(fmt(s.billingMin||0),{align:AlignmentType.RIGHT})),
-        ...enabledOpts.map(o=>row(cel(o.label,{bold:true}),cel('1',{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.RIGHT}))),
-        row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT})),
+        row(itemCell('Communications Billing',LINE_DESC.billing),cel(fmt(s.billingMin||0),{align:AlignmentType.CENTER}),cel((s.billingRate||0)+'%',{align:AlignmentType.CENTER}),cel(fmt(s.billingMin||0),{align:AlignmentType.RIGHT})),
+        ...enabledOpts.map(o=>row(itemCell(o.label,o.desc),cel('1',{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.RIGHT}))),
+        row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13,fill:LGRAY}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT,fill:LGRAY})),
       ]
     });
 

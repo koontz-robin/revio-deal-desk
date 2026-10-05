@@ -22001,8 +22001,8 @@ async function buildDocx(){
       para([run('"Monthly Licensee Communications Billing" shall include all amounts billed by Licensee to its customers during the previous month that generate communications taxes through the integrated tax database provider, excluding charges subject only to sales and use tax, Licensee write-offs, and "Non-Recurring" product types.',{size:12,color:MGRAY,italics:true})],{spacing:{before:80,after:160}}),
       arrearsNote(),
       secHdr('REV.IO OPTIONS'),optTable,
-      para([run('')]),subtotalTable,
       ...cdrSections(),
+      para([run('')]),subtotalTable,
       secHdr('SETUP & CONVERSION FEES'),otTable(),
       ...termsAndSig(),
     ];

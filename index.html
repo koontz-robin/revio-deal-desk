@@ -20515,12 +20515,6 @@ function updateCdrFee(){
 const ARREARS_NOTE='Any overage is billed monthly in arrears for the preceding month at the rates shown above.';
 const PSA_TIERS=[{max:5,rate:115},{max:10,rate:110},{max:25,rate:105},{max:50,rate:100},{max:Infinity,rate:90}];
 const PSA_TIER_LABELS=['1–5 users','6–10 users','11–25 users','26–50 users','51+ users'];
-const BILLING_TIERS=[
-  {id:'startup',   name:'Start-up',  min:1000, rate:2.50, cdrFree:2, setup:5000},
-  {id:'midsize',   name:'Midsize',   min:3000, rate:1.50, cdrFree:3, setup:10000},
-  {id:'strategic', name:'Strategic', min:6000, rate:1.25, cdrFree:4, setup:10000},
-  {id:'enterprise',name:'Enterprise',min:5000, rate:null, cdrFree:5, setup:15000},
-];
 const REV_OPTIONS=[
   {key:'agentBundle',    label:'Agent Bundle',      billingRate:500,  combinedRate:250,  desc:'Agent management and commissioning tools.'},
   {key:'enterprisePortal',label:'Enterprise Portal', billingRate:1000, combinedRate:1000, desc:'Customer-facing self-service portal.'},
@@ -20570,25 +20564,28 @@ function fmt(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigi
 function fmtDec(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
 // Recommend billing tier based on volume
+// Each tier's volume is the monthly billing at which its rate equals its
+// minimum, so a tier takes over exactly where it becomes the cheaper of the two.
+const BILLING_TIERS=[
+  {id:'startup',   name:'Start-up',   min:1000,  rate:2.5, volume:40000},
+  {id:'midsize',   name:'Midsize',    min:3000,  rate:2.0, volume:150000},
+  {id:'strategic', name:'Strategic',  min:7500,  rate:1.5, volume:500000},
+  {id:'enterprise',name:'Enterprise', min:10000, rate:1.0, volume:1000000},
+];
+
 function recommendTier(volume){
   volume=parseFloat(volume)||0;
-  const startup2_5=Math.max(1000,volume*0.025);
-  const midsize1_5=Math.max(3000,volume*0.015);
-  const strategic1_25=Math.max(6000,volume*0.0125);
   if(volume<=0) return null;
-  if(volume<120000){
-    return{id:'startup',name:'Start-up',min:1000,rate:2.50,
-      fee:startup2_5,why:`${volume<40000?'Minimum applies':'2.5% × '+fmt(volume)+' = '+fmt(startup2_5)+'/mo'}`};
-  }else if(volume<400000){
-    return{id:'midsize',name:'Midsize',min:3000,rate:1.50,
-      fee:midsize1_5,why:`1.5% × ${fmt(volume)} = ${fmt(midsize1_5)}/mo`};
-  }else if(volume<700000){
-    return{id:'strategic',name:'Strategic',min:6000,rate:1.25,
-      fee:strategic1_25,why:`1.25% × ${fmt(volume)} = ${fmt(strategic1_25)}/mo`};
-  }else{
-    return{id:'enterprise',name:'Enterprise',min:5000,rate:null,
-      fee:5000,why:`High-volume client — platform fee $5,000/mo + tiered usage rate`};
-  }
+  // Highest tier the volume has reached; below the first threshold the
+  // Start-up minimum still applies.
+  let t=BILLING_TIERS[0];
+  for(const cand of BILLING_TIERS) if(volume>=cand.volume) t=cand;
+  const usage=volume*t.rate/100;
+  const fee=Math.max(t.min,usage);
+  return{id:t.id,name:t.name,min:t.min,rate:t.rate,fee,
+    why:usage>t.min
+      ?`${t.rate}% × ${fmt(volume)} = ${fmt(usage)}/mo`
+      :`${t.rate}% × ${fmt(volume)} = ${fmt(usage)} — the ${fmt(t.min)} minimum applies`};
 }
 
 // ── State ────────────────────────────────────────────────────────────────
@@ -21313,10 +21310,10 @@ function updateTierRec(){
     <b>Recommended: ${rec.name} Tier</b> — ${rec.why}<br>
     <span style="color:var(--text2);font-size:12px">Pre-filling minimum and rate below — override if needed.</span>
   </div>`;
-  s.billingMin=rec.min; s.billingRate=rec.rate||s.billingRate; s.billingTier=rec.id;
+  s.billingMin=rec.min; s.billingRate=rec.rate; s.billingTier=rec.id;
   const minIn=document.getElementById('f_bMin'),rateIn=document.getElementById('f_bRate');
   if(minIn)minIn.value=rec.min;
-  if(rateIn&&rec.rate)rateIn.value=rec.rate;
+  if(rateIn)rateIn.value=rec.rate;
   if(s.products==='both')updateCombinedMin();
 }
 

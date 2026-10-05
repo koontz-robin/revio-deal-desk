@@ -20706,10 +20706,20 @@ function renderDots(){
   }
 }
 
+let autoAdvance=null;
+
 function pick(key,val,el){
   s[key]=val;
   el.closest('.card-body').querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('sel'));
   el.classList.add('sel');
+  // Choosing the document type moves straight on. The short pause lets the
+  // selection register before the step changes, and re-clicking replaces the
+  // pending move rather than queueing a second one. Continue stays on the step
+  // for anyone who comes back with a choice already made.
+  if(key==='docType'){
+    clearTimeout(autoAdvance);
+    autoAdvance=setTimeout(()=>{if(cur===1)go(1);},180);
+  }
 }
 
 // ── Step 5: Product Config ────────────────────────────────────────────────

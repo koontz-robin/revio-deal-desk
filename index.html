@@ -20516,12 +20516,12 @@ const ARREARS_NOTE='Any overage is billed monthly in arrears for the preceding m
 const PSA_TIERS=[{max:5,rate:115},{max:10,rate:110},{max:25,rate:105},{max:50,rate:100},{max:Infinity,rate:90}];
 const PSA_TIER_LABELS=['1–5 users','6–10 users','11–25 users','26–50 users','51+ users'];
 const REV_OPTIONS=[
-  {key:'agentBundle',    label:'Agent Bundle',      billingRate:500,  combinedRate:250,  desc:'Agent management and commissioning tools.'},
+  {key:'agentBundle',    label:'Agent Bundle',      billingRate:500,  combinedRate:250,  desc:'Combination of the Agent portal and Commissions module'},
   {key:'enterprisePortal',label:'Enterprise Portal', billingRate:1000, combinedRate:1000, desc:'Customer-facing self-service portal.'},
-  {key:'syncFormat',     label:'SYNC Format',        billingRate:500,  combinedRate:500,  desc:'SYNC-format data export.'},
-  {key:'analytics',      label:'Analytics',          billingRate:250,  combinedRate:250,  desc:'Reporting and analytics module.'},
-  {key:'qbo',            label:'QuickBooks Online',  billingRate:250,  combinedRate:250,  desc:'Integration with QuickBooks Online.'},
-  {key:'connectwise',    label:'ConnectWise',        billingRate:250,  combinedRate:250,  desc:'Integration with ConnectWise.'},
+  {key:'syncFormat',     label:'SYNC Format',        billingRate:500,  combinedRate:500,  desc:'Switch auditing / revenue reconciliation'},
+  {key:'analytics',      label:'Analytics',          billingRate:250,  combinedRate:250,  desc:'Microsoft PowerBI dashboard with AI capabilities'},
+  {key:'qbo',            label:'QuickBooks Online',  billingRate:250,  combinedRate:250,  desc:'Automatic data push (invoices, charges, payments)'},
+  {key:'connectwise',    label:'ConnectWise',        billingRate:250,  combinedRate:250,  desc:'Bi-directional data syncing (accounts, contacts, agreements, telecom taxes/usage charges)'},
   {key:'netsuite',       label:'NetSuite',           billingRate:250,  combinedRate:250,  desc:'Integration with NetSuite.'},
 ];
 
@@ -20530,7 +20530,7 @@ const REV_OPTIONS=[
 // if a particular deal needs different wording.
 const LINE_DESC={
   stdUsers:'Named users with full platform access.',
-  fieldUsers:'Named users with field service access.',
+  fieldUsers:'Restricts user to only accessing customer information through the mobile app',
   reviiCredits:'Included Rev.ii credit allowance; usage beyond it is billed per credit.',
   billing:'Rating, invoicing and tax for communications services.',
 };
@@ -21683,6 +21683,7 @@ async function buildDocx(){
         rows:[row(
           new TableCell({borders:bot(),shading:{fill:CDR,type:ShadingType.CLEAR},margins:m(),children:[
             para([run('CDR FORMATS',{bold:true,size:11,color:MGRAY})]),
+            para([run('Importer refers to each unique source Rev.io will be receiving raw usage data from.',{size:11,color:MGRAY,italics:true})]),
             para([run('Importers only valid before activation',{size:11,color:MGRAY,italics:true})]),
             para([run('Included: '+(s.cdrFormats||0)+' formats (no charge)',{size:14})]),
             para([run('Additional: '+(s.cdrExtra||0)+' × $100 / month',{size:14})]),
@@ -21711,7 +21712,7 @@ async function buildDocx(){
         row(
           new TableCell({width:{size:COL4[0],type:WidthType.DXA},borders:bot(),margins:m(),children:[
             para([run('Standard Setup & Training',{bold:true,size:14})]),
-            para([run('Add a description',{size:11,color:MGRAY,italics:true})]),
+            para([run('Guided implementation with dedicated Rev.io Onboarding team',{size:11,color:MGRAY,italics:true})]),
           ]}),
           cel(s.setupFee>0?'1':'—',{width:COL4[1],align:AlignmentType.CENTER}),
           cel(s.setupFee>0?fmt(s.setupFee):'—',{width:COL4[2],align:AlignmentType.CENTER}),
@@ -21720,7 +21721,7 @@ async function buildDocx(){
         row(
           new TableCell({width:{size:COL4[0],type:WidthType.DXA},borders:bot(),margins:m(),children:[
             para([run('Data Migration',{bold:true,size:14})]),
-            para([run('Add a description',{size:11,color:MGRAY,italics:true})]),
+            para([run('Rev.io\u2013assisted migration of historical client data, including variance testing and comparative period analysis.',{size:11,color:MGRAY,italics:true})]),
           ]}),
           cel(s.migrationFee>0?'1':'—',{width:COL4[1],align:AlignmentType.CENTER}),
           cel(s.migrationFee>0?fmt(s.migrationFee):'—',{width:COL4[2],align:AlignmentType.CENTER}),

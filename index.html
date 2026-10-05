@@ -16,6 +16,7 @@
   --accent-h: #16A34A;
   --accent-l: rgba(34,197,94,0.15);
   --accent-b: rgba(34,197,94,0.30);
+  --chart:    #16A34A;
   --info-bg:  rgba(3,105,161,0.15);
   --info-b:   rgba(3,105,161,0.35);
   --warn-bg:  rgba(146,64,14,0.15);
@@ -149,6 +150,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-reset{background:transparent;color:var(--text3);border:1.5px solid transparent}
 .btn-reset:hover{color:var(--text2);border-color:var(--border)}
 
+/* Dashboard */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px}
+.kpi{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px}
+.kpi-n{font-size:26px;font-weight:700;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi-l{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-top:6px}
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.bar-row{display:grid;grid-template-columns:116px 1fr 42px;align-items:center;gap:10px;margin-bottom:8px}
+.bar-row .bl{font-size:13px;color:var(--text2)}
+.bar-row .bt{height:100%;background:var(--chart);border-radius:0 3px 3px 0}
+.bar-row .bw{background:rgba(255,255,255,0.05);border-radius:3px;height:14px}
+.bar-row .bn{font-size:13px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+.spark{display:flex;align-items:flex-end;gap:2px;height:64px;margin-top:10px}
+.spark div{flex:1;background:var(--chart);border-radius:3px 3px 0 0;min-height:2px}
+.spark div.zero{background:rgba(255,255,255,0.06)}
+.spark-ax{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:6px}
+@media(max-width:720px){.kpi-row{grid-template-columns:repeat(2,1fr)}.dash-grid{grid-template-columns:1fr}}
+
 /* Step visibility */
 .step{display:none}.step.active{display:block;animation:fi .18s ease}
 @keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
@@ -212,6 +230,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
     </div>
     <div class="btn-row"><span></span><button class="btn btn-next" onclick="go(1)">Continue →</button></div>
+
+    <!-- Hidden until the reporting endpoint answers, so the page still works
+         offline, from a file, or on a deploy without functions. -->
+    <div class="card" id="dashCard" style="display:none;margin-top:26px">
+      <div class="card-head">
+        <div class="card-title">Documents Generated</div>
+        <div class="card-sub" id="dashSub"></div>
+      </div>
+      <div class="card-body">
+        <div class="kpi-row" id="dashKpis"></div>
+        <div class="dash-grid">
+          <div>
+            <div class="slabel">By document</div>
+            <div id="dashByType"></div>
+          </div>
+          <div>
+            <div class="slabel">By product</div>
+            <div id="dashByProduct"></div>
+          </div>
+        </div>
+        <div class="slabel" style="margin-top:24px">Last 30 days</div>
+        <div class="spark" id="dashSpark"></div>
+        <div class="spark-ax"><span id="dashFrom"></span><span id="dashTo"></span></div>
+      </div>
+    </div>
   </div>
 
   <!-- Step 2: Products -->
@@ -21428,6 +21471,7 @@ async function generateDoc(){
       :`${s.company||'RevIO'} - ${productDocLabel()} ${noun}.docx`;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    logDocument();
     btn.textContent='✓ Downloaded!';
     setTimeout(()=>{btn.textContent='⬇ Generate Document';btn.disabled=false;},3000);
   }catch(e){
@@ -21974,10 +22018,75 @@ async function buildDocx(){
 }
 
 
+// ── Usage reporting ──────────────────────────────────────────────────────
+// Fire and forget: the app must keep working offline, opened from a file, or on
+// a deploy with no functions, so every failure here is swallowed.
+function logDocument(){
+  if(!/^https?:$/.test(location.protocol)) return;
+  try{
+    fetch('/api/log-document',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        docType:s.docType||'unknown',
+        product:s.docType==='addendum'?'none':(s.products||'none'),
+        starterPack:!!s.starterPack,
+      }),
+      keepalive:true,
+    }).catch(()=>{});
+  }catch(e){}
+}
+
+const DOC_NAMES={quote:'Quotes',contract:'Contracts',renewal:'Renewals',addendum:'Addenda',unknown:'Other'};
+const PROD_NAMES={psa:'New Rev.io',billing:'Classic Rev.io',tigerpaw:'Tigerpaw',both:'Combined',none:'—'};
+
+function barRows(rows,names,total){
+  if(!rows.length) return '<div class="hint" style="color:var(--text3)">Nothing yet.</div>';
+  const top=Math.max(...rows.map(r=>r.count),1);
+  return rows.map(r=>{
+    const label=names[r.key]||r.key;
+    const pct=Math.round(r.count/top*100);
+    const share=total?Math.round(r.count/total*100):0;
+    return `<div class="bar-row" title="${esc(label)}: ${r.count} of ${total} (${share}%)">`
+      +`<div class="bl">${esc(label)}</div>`
+      +`<div class="bw"><div class="bt" style="width:${pct}%"></div></div>`
+      +`<div class="bn">${r.count}</div></div>`;
+  }).join('');
+}
+
+function renderDashboard(d){
+  const kpis=[[d.total,'Total'],[d.thisMonth,'This month'],[d.last7,'Last 7 days'],[d.starterPack,'Starter Packs']];
+  document.getElementById('dashKpis').innerHTML=kpis.map(([v,l])=>
+    `<div class="kpi"><div class="kpi-n">${v.toLocaleString()}</div><div class="kpi-l">${l}</div></div>`).join('');
+
+  document.getElementById('dashByType').innerHTML=barRows(d.byType,DOC_NAMES,d.total);
+  document.getElementById('dashByProduct').innerHTML=barRows(d.byProduct,PROD_NAMES,d.total);
+
+  const peak=Math.max(...d.series.map(p=>p.count),1);
+  document.getElementById('dashSpark').innerHTML=d.series.map(p=>
+    `<div class="${p.count?'':'zero'}" style="height:${p.count?Math.max(6,Math.round(p.count/peak*100)):4}%" title="${p.day}: ${p.count}"></div>`).join('');
+  document.getElementById('dashFrom').textContent=fmtDate(d.series[0].day);
+  document.getElementById('dashTo').textContent=fmtDate(d.series[d.series.length-1].day);
+
+  document.getElementById('dashSub').textContent=d.firstDay
+    ?`${d.last30.toLocaleString()} in the last 30 days · since ${fmtDate(d.firstDay)}`
+    :'No documents recorded yet.';
+  document.getElementById('dashCard').style.display='block';
+}
+
+function loadDashboard(){
+  if(!/^https?:$/.test(location.protocol)) return;
+  fetch('/api/stats')
+    .then(r=>r.ok?r.json():Promise.reject())
+    .then(d=>{if(d&&Array.isArray(d.series))renderDashboard(d);})
+    .catch(()=>{});   // no endpoint deployed — leave the card hidden
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────
 
 document.getElementById('topBack').disabled=true;
 renderDots();
+loadDashboard();
 
 </script>
 </body>

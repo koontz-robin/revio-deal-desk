@@ -1,0 +1,9 @@
+{
+  "name": "revio-deal-desk",
+  "private": true,
+  "type": "module",
+  "description": "Rev.io Deal Desk — quote, contract, renewal and addendum generator",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

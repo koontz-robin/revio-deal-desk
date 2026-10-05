@@ -21624,17 +21624,19 @@ async function buildDocx(){
       )]});
 
   // ── PSA product rows ─────────────────────────────────────────────────
+  // Rev.ii Credits always sit immediately above the monthly subtotal, after
+  // every other product on the agreement.
+  const creditsRows=()=>s.reviiCredits>0?[row(itemCell('Rev.ii Credits',LINE_DESC.reviiCredits),cel((s.reviiCredits||0).toLocaleString(),{align:AlignmentType.CENTER}),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT}))]:[];
+
   function psaRows(){
     const rows=[];
     const rate=psaRate(s.stdUsers||1);
     if(s.starterPack){
       rows.push(row(itemCell('Standard Users',LINE_DESC.stdUsers),cel(String(s.stdUsers||0),{align:AlignmentType.CENTER}),cel('$'+rate+' / user',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
       rows.push(row(itemCell('Field Users',LINE_DESC.fieldUsers),cel(String(s.fieldUsers||0),{align:AlignmentType.CENTER}),cel('$30 / user',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
-      rows.push(row(itemCell('Rev.ii Credits',LINE_DESC.reviiCredits),cel((s.reviiCredits||0).toLocaleString(),{align:AlignmentType.CENTER}),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
     }else{
       if(s.stdUsers)rows.push(row(itemCell('Standard Users',LINE_DESC.stdUsers),cel(String(s.stdUsers),{align:AlignmentType.CENTER}),cel('$'+rate+' / user',{align:AlignmentType.CENTER}),cel(fmt(s.stdUsers*rate),{align:AlignmentType.RIGHT})));
       if(s.fieldUsers)rows.push(row(itemCell('Field Users',LINE_DESC.fieldUsers),cel(String(s.fieldUsers),{align:AlignmentType.CENTER}),cel('$30 / user',{align:AlignmentType.CENTER}),cel(fmt(s.fieldUsers*30),{align:AlignmentType.RIGHT})));
-      if(s.reviiCredits)rows.push(row(itemCell('Rev.ii Credits',LINE_DESC.reviiCredits),cel(s.reviiCredits.toLocaleString(),{align:AlignmentType.CENTER}),cel('$0.01 / credit',{align:AlignmentType.CENTER}),cel('Included',{align:AlignmentType.RIGHT})));
     }
     return rows;
   }
@@ -21908,6 +21910,7 @@ async function buildDocx(){
       rows:[
         row(hc(s.starterPack?'INCLUDED PRODUCT':'ITEM',COL4[0]),hc('QUANTITY',COL4[1]),hc('OVERAGE RATE',COL4[2]),hc('TOTAL',COL4[3])),
         ...psaRows(),
+        ...creditsRows(),
         row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13,fill:LGRAY}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT,fill:LGRAY})),
       ]
     });
@@ -21967,13 +21970,18 @@ async function buildDocx(){
       )]
     });
 
-    // Monthly license fee plus Rev.io Options and any additional CDR formats.
+    // Monthly license fee, Rev.io Options, additional CDR formats, and the CDR
+    // storage estimate once a volume has been entered.
     const optionsTotal=enabledOpts.reduce((sum,o)=>sum+(s[o.key+'Rate']||0),0);
     const cdrExtraFee=(s.cdrExtra||0)*100;
-    const monthlySubtotal=(s.billingMin||0)+optionsTotal+cdrExtraFee;
+    const storageFee=Math.round(cdrStorageFee()*100)/100;
+    const monthlySubtotal=(s.billingMin||0)+optionsTotal+cdrExtraFee+storageFee;
+    // Only the storage estimate can carry cents, so show them only when it does.
+    const money=v=>v%1===0?fmt(v):fmtDec(v);
     const subtotalBits=[];
     if(optionsTotal>0) subtotalBits.push('Rev.io Options '+fmt(optionsTotal));
     if(cdrExtraFee>0) subtotalBits.push('Additional CDR Formats ('+s.cdrExtra+' × $100) '+fmt(cdrExtraFee));
+    if(storageFee>0) subtotalBits.push('Estimated CDR Storage '+fmtDec(storageFee));
     const subtotalMakeup=subtotalBits.length
       ?'Monthly License Fee '+fmt(s.billingMin||0)+' plus '+subtotalBits.join(' plus ')+'.'
       :'Monthly License Fee.';
@@ -21985,7 +21993,7 @@ async function buildDocx(){
           para([run(subtotalMakeup,{size:11,color:MGRAY})]),
         ]}),
         new TableCell({width:{size:3300,type:WidthType.DXA},borders:bot(),shading:{fill:LGRAY,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
-          para([run(fmt(monthlySubtotal)+' / month',{bold:true,size:15,color:DARK})],{alignment:AlignmentType.RIGHT}),
+          para([run(money(monthlySubtotal)+' / month',{bold:true,size:15,color:DARK})],{alignment:AlignmentType.RIGHT}),
         ]}),
       )]
     });
@@ -21993,12 +22001,12 @@ async function buildDocx(){
     const children=[
       hdrTable,para([run('')]),custTable,
       secHdr('REV.IO MONTHLY LICENSING FEE'),feeTable,
-      para([run('Rev.ii Credits: ',{bold:true,size:14,color:DARK}),
-            run((s.reviiCredits||0).toLocaleString()+' included, $0.01 per credit thereafter.',{size:14,color:GRAY})],{spacing:{before:80,after:0}}),
       para([run('"Monthly Licensee Communications Billing" shall include all amounts billed by Licensee to its customers during the previous month that generate communications taxes through the integrated tax database provider, excluding charges subject only to sales and use tax, Licensee write-offs, and "Non-Recurring" product types.',{size:12,color:MGRAY,italics:true})],{spacing:{before:80,after:160}}),
       arrearsNote(),
       secHdr('REV.IO OPTIONS'),optTable,
       ...cdrSections(),
+      para([run('Rev.ii Credits: ',{bold:true,size:14,color:DARK}),
+            run((s.reviiCredits||0).toLocaleString()+' included, $0.01 per credit thereafter.',{size:14,color:GRAY})],{spacing:{before:80,after:0}}),
       para([run('')]),subtotalTable,
       secHdr('SETUP & CONVERSION FEES'),otTable(),
       ...termsAndSig(),
@@ -22034,6 +22042,7 @@ async function buildDocx(){
         ...psaRows(),
         row(itemCell('Communications Billing',LINE_DESC.billing),cel(fmt(s.billingMin||0),{align:AlignmentType.CENTER}),cel((s.billingRate||0)+'%',{align:AlignmentType.CENTER}),cel(fmt(s.billingMin||0),{align:AlignmentType.RIGHT})),
         ...enabledOpts.map(o=>row(itemCell(o.label,o.desc),cel('1',{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.RIGHT}))),
+        ...creditsRows(),
         row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13,fill:LGRAY}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT,fill:LGRAY})),
       ]
     });

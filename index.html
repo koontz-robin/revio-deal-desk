@@ -21560,7 +21560,7 @@ async function buildDocx(){
     {bold:true,...opts});
 
   // Column header: no fill, MGRAY, small, bold
-  const hc=(text,width)=>cel(text,{bold:true,color:MGRAY,width,sz:11});
+  const hc=(text,width,align)=>cel(text,{bold:true,color:MGRAY,width,sz:11,align});
   const row=(...cells)=>new TableRow({children:cells});
 
   // ── Page setup ───────────────────────────────────────────────────────
@@ -21707,7 +21707,7 @@ async function buildDocx(){
     return new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,columnWidths:COL4,
       rows:[
-        row(hc('ITEM',COL4[0]),hc('QUANTITY',COL4[1]),hc('RATE',COL4[2]),hc('TOTAL',COL4[3])),
+        row(hc('ITEM',COL4[0]),hc('QUANTITY',COL4[1],AlignmentType.CENTER),hc('RATE',COL4[2],AlignmentType.CENTER),hc('TOTAL',COL4[3],AlignmentType.RIGHT)),
         row(
           new TableCell({width:{size:COL4[0],type:WidthType.DXA},borders:bot(),margins:m(),children:[
             para([run('Standard Setup & Training',{bold:true,size:14})]),
@@ -21841,7 +21841,7 @@ async function buildDocx(){
     const prodTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,columnWidths:COL4,
       rows:[
-        row(hc('INCLUDED PRODUCT',COL4[0]),hc('QUANTITY',COL4[1]),hc('ADDITIONAL USER RATE',COL4[2]),hc('TOTAL',COL4[3])),
+        row(hc('INCLUDED PRODUCT',COL4[0]),hc('QUANTITY',COL4[1],AlignmentType.CENTER),hc('ADDITIONAL USER RATE',COL4[2],AlignmentType.CENTER),hc('TOTAL',COL4[3],AlignmentType.RIGHT)),
         row(
           itemCell('Standard Users',LINE_DESC.stdUsers,{width:COL4[0]}),
           cel(String(s.tpStdUsers||0),{width:COL4[1],align:AlignmentType.CENTER}),
@@ -21908,7 +21908,7 @@ async function buildDocx(){
     const prodTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,columnWidths:COL4,
       rows:[
-        row(hc(s.starterPack?'INCLUDED PRODUCT':'ITEM',COL4[0]),hc('QUANTITY',COL4[1]),hc('OVERAGE RATE',COL4[2]),hc('TOTAL',COL4[3])),
+        row(hc(s.starterPack?'INCLUDED PRODUCT':'ITEM',COL4[0]),hc('QUANTITY',COL4[1],AlignmentType.CENTER),hc('OVERAGE RATE',COL4[2],AlignmentType.CENTER),hc('TOTAL',COL4[3],AlignmentType.RIGHT)),
         ...psaRows(),
         ...creditsRows(),
         row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13,fill:LGRAY}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT,fill:LGRAY})),
@@ -22038,9 +22038,9 @@ async function buildDocx(){
     const prodTable=new Table({
       width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,columnWidths:COL4,
       rows:[
-        row(hc('INCLUDED PRODUCTS',COL4[0]),hc('QUANTITY',COL4[1]),hc('RATE',COL4[2]),hc('TOTAL',COL4[3])),
+        row(hc('INCLUDED PRODUCTS',COL4[0]),hc('QUANTITY',COL4[1],AlignmentType.CENTER),hc('RATE',COL4[2],AlignmentType.CENTER),hc('TOTAL',COL4[3],AlignmentType.RIGHT)),
         ...psaRows(),
-        row(itemCell('Communications Billing',LINE_DESC.billing),cel(fmt(s.billingMin||0),{align:AlignmentType.CENTER}),cel((s.billingRate||0)+'%',{align:AlignmentType.CENTER}),cel(fmt(s.billingMin||0),{align:AlignmentType.RIGHT})),
+        row(itemCell('Communications Billing',LINE_DESC.billing),cel(s.billingVolume>0?fmt(s.billingVolume):'\u2014',{align:AlignmentType.CENTER}),cel((s.billingRate||0)+'%',{align:AlignmentType.CENTER}),cel(fmt(s.billingMin||0),{align:AlignmentType.RIGHT})),
         ...enabledOpts.map(o=>row(itemCell(o.label,o.desc),cel('1',{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.CENTER}),cel(fmt(s[o.key+'Rate']||0),{align:AlignmentType.RIGHT}))),
         ...creditsRows(),
         row(cel('MONTHLY SUBTOTAL',{colspan:3,bold:true,color:DARK,sz:13,fill:LGRAY}),cel(fmt(subtotal),{bold:true,color:DARK,sz:13,align:AlignmentType.RIGHT,fill:LGRAY})),

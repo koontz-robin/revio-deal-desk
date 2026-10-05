@@ -20803,7 +20803,7 @@ function buildPsaCard(){
           <span class="hint">$0.01 / credit overage rate</span>
         </div>
       </div>
-      <div class="slabel">Implementation Fees</div>
+      <div class="slabel">Implementation Fees${s.products==='both'?' <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">— covers the whole agreement</span>':''}</div>
       <div class="fg g2">
         <div class="field">
           <label>Standard Setup &amp; Training ($)</label>
@@ -21229,6 +21229,7 @@ function buildBillingCard(){
 
 
 
+      ${s.products==='both'?'':`
       <div class="slabel">Setup &amp; Migration Fees</div>
       <div class="fg g2">
         <div class="field">
@@ -21240,6 +21241,7 @@ function buildBillingCard(){
           <input type="number" id="b_migration" value="${s.migrationFee}" min="0" oninput="s.migrationFee=parseFloat(this.value)||0">
         </div>
       </div>
+      `}
       <div class="slabel">Agreement Term</div>
       <div class="fg g2">
         <div class="field">

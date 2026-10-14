@@ -249,6 +249,11 @@ body.locked .wrap,body.locked .topbar,body.locked .prog-track{visibility:hidden}
             <span class="opt-label">Addendum</span>
             <span class="opt-desc">Amends an agreement already in place</span>
           </button>
+          <button class="opt-btn" onclick="pick('docType','payments',this)">
+            <span class="opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/><path d="M6.5 14.5h3"/></svg></span>
+            <span class="opt-label">Payments</span>
+            <span class="opt-desc">Payment processing — Paya migration or a new client</span>
+          </button>
         </div>
       </div>
     </div>
@@ -285,11 +290,11 @@ body.locked .wrap,body.locked .topbar,body.locked .prog-track{visibility:hidden}
     <div class="card">
       <div class="card-head">
         <div class="card-step">Step 2 of 5</div>
-        <div class="card-title">What products are you selling?</div>
+        <div class="card-title" id="step2Title">What products are you selling?</div>
       </div>
       <div class="card-body">
         <div class="opt-grid cols2" id="productGrid">
-          <button class="opt-btn" onclick="pick('products','psa',this)">
+          <button class="opt-btn" id="optPsa" onclick="pick('products','psa',this)">
             <span class="opt-icon">🔧</span>
             <span class="opt-label">New Rev.io</span>
             <span class="opt-desc">User-based New Rev.io platform</span>
@@ -299,10 +304,20 @@ body.locked .wrap,body.locked .topbar,body.locked .prog-track{visibility:hidden}
             <span class="opt-label">Tigerpaw</span>
             <span class="opt-desc">Renewal at the client's current Tigerpaw minimum</span>
           </button>
-          <button class="opt-btn" onclick="pick('products','billing',this)">
+          <button class="opt-btn" id="optBilling" onclick="pick('products','billing',this)">
             <span class="opt-icon">💰</span>
             <span class="opt-label">Classic Rev.io</span>
             <span class="opt-desc">Communications billing platform</span>
+          </button>
+          <button class="opt-btn" id="optPaya" style="display:none" onclick="pick('products','paya',this)">
+            <span class="opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5h13"/><path d="m13.5 5.5 3 3-3 3"/><path d="M20.5 15.5h-13"/><path d="m10.5 12.5-3 3 3 3"/></svg></span>
+            <span class="opt-label">Paya Migration</span>
+            <span class="opt-desc">Moving an existing Paya merchant onto Rev.io Payments</span>
+          </button>
+          <button class="opt-btn" id="optPayNew" style="display:none" onclick="pick('products','paynew',this)">
+            <span class="opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.5 11.5V7a2 2 0 0 0-2-2h-15a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8"/><path d="M2.5 10h19"/><path d="M18 14.5v6"/><path d="M15 17.5h6"/></svg></span>
+            <span class="opt-label">New Client</span>
+            <span class="opt-desc">Payment processing for a client new to Rev.io Payments</span>
           </button>
         </div>
       </div>
@@ -20637,6 +20652,8 @@ const s={
   tpStdOverage:115,tpFieldOverage:30,tpContractEnd:'',
   // Addendum — the agreement being amended
   addendumOrigDate:'',addendumEffDate:'',addendumChanges:'',
+  // Payments — Paya migration or a new payments client
+  payEffDate:'',payScope:'',
   // Combined
   combinedMin:1000,
 };
@@ -20653,7 +20670,7 @@ function go(from){
   if(from>0){
     // Validate
     if(from===1&&!s.docType)return alert('Please choose what you are creating.');
-    if(from===2&&!s.products)return alert('Please select a product.');
+    if(from===2&&!s.products)return alert(isPayments()?'Please choose Paya Migration or New Client.':'Please select a product.');
     if(from===3&&s.starterPack===null)return alert('Please make a selection.');
 
   }
@@ -20665,6 +20682,11 @@ function go(from){
   // Starter Pack does not apply to a Tigerpaw renewal
   if(from===2&&s.products==='tigerpaw'){s.starterPack=false;next=4;}
   if(from<0&&cur===4&&s.products==='tigerpaw')next=2; // back past step 3
+  // Nor to a Payments deal, which goes straight from its two options to config.
+  if(isPayments()){
+    if(from===2){s.starterPack=false;next=4;}
+    if(from<0&&cur===4)next=2;
+  }
   // An addendum carries no pricing, so it skips product selection entirely.
   if(s.docType==='addendum'){
     if(from===1)next=4;
@@ -20697,16 +20719,39 @@ function startOver(){
 }
 
 // Tigerpaw is a renewal-only product, so Step 2 depends on the Step 1 choice.
+// What Step 2 offers depends on the Step 1 choice: Tigerpaw is renewal-only,
+// and a Payments deal replaces the platform products with its own two paths.
+const STEP2_OPTIONS={
+  payments:['paya','paynew'],
+  renewal :['psa','tigerpaw','billing'],
+};
+const OPT_BTN={psa:'optPsa',tigerpaw:'optTigerpaw',billing:'optBilling',paya:'optPaya',paynew:'optPayNew'};
+
+function step2Options(){
+  return STEP2_OPTIONS[s.docType]||['psa','billing'];
+}
+function isPayments(){
+  return s.docType==='payments';
+}
+
 function updateProductOptions(){
   const grid=document.getElementById('productGrid');
-  const btn=document.getElementById('optTigerpaw');
-  if(!grid||!btn) return;
-  const isRenewal=s.docType==='renewal';
-  btn.style.display=isRenewal?'':'none';
-  grid.classList.toggle('cols3',isRenewal);
-  grid.classList.toggle('cols2',!isRenewal);
-  // Drop a Tigerpaw selection if the doc type moved away from renewal.
-  if(!isRenewal&&s.products==='tigerpaw'){
+  if(!grid) return;
+  const allowed=step2Options();
+  Object.entries(OPT_BTN).forEach(([key,id])=>{
+    const btn=document.getElementById(id);
+    if(btn) btn.style.display=allowed.includes(key)?'':'none';
+  });
+  grid.classList.toggle('cols3',allowed.length===3);
+  grid.classList.toggle('cols2',allowed.length!==3);
+  const title=document.getElementById('step2Title');
+  if(title) title.textContent=isPayments()
+    ?'What kind of Payments deal is this?'
+    :'What products are you selling?';
+  // Drop a selection the current document type no longer offers. 'both' is a
+  // New Rev.io agreement with Communications Billing added, so it rides on psa.
+  const effective=s.products==='both'?'psa':s.products;
+  if(effective&&!allowed.includes(effective)){
     s.products=null;
     grid.querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('sel'));
   }
@@ -20760,6 +20805,10 @@ function buildStep5(){
   // An addendum is a standalone document — no product configuration.
   if(s.docType==='addendum'){
     inner.appendChild(buildAddendumCard());
+    return;
+  }
+  if(isPayments()){
+    inner.appendChild(buildPaymentsCard());
     return;
   }
   if(s.products==='tigerpaw'){
@@ -21004,6 +21053,70 @@ function buildAddendumCard(){
           <span class="hint">Becomes the body of the AMENDMENT section. Write it as it should read in the agreement.</span>
         </div>
       </div>
+    </div>`;
+  return card;
+}
+
+function buildPaymentsCard(){
+  const card=document.createElement('div');
+  card.className='card';
+  const paya=s.products==='paya';
+  card.innerHTML=`
+    <div class="card-head">
+      <div class="card-step">Step 4 of 5</div>
+      <div class="card-title">${paya?'Paya Migration':'New Payments Client'}</div>
+      <div class="card-sub">${paya
+        ?'Moves an existing Paya merchant onto Rev.io Payments.'
+        :'Payment processing for a client new to Rev.io Payments.'}</div>
+    </div>
+    <div class="card-body">
+      <div class="slabel">Client</div>
+      <div class="fg g2">
+        <div class="field">
+          <label>Client Name</label>
+          <input type="text" id="pay_client" value="${esc(s.company)}" placeholder="e.g. Unicom" oninput="s.company=this.value">
+        </div>
+        <div class="field">
+          <label>Sales Contact</label>
+          <input type="text" id="pay_rep" value="${esc(s.rep)}" placeholder="Optional" oninput="s.rep=this.value">
+        </div>
+      </div>
+      <div class="fg g2">
+        <div class="field">
+          <label>Client Contact</label>
+          <input type="text" id="pay_contact" value="${esc(s.contact)}" placeholder="Optional" oninput="s.contact=this.value">
+        </div>
+        <div class="field">
+          <label>Contact Email</label>
+          <input type="email" id="pay_email" value="${esc(s.email)}" placeholder="Optional" oninput="s.email=this.value">
+        </div>
+      </div>
+
+      <div class="slabel">Dates &amp; Term</div>
+      <div class="fg g2">
+        <div class="field">
+          <label>Effective Date</label>
+          <input type="date" id="pay_eff" value="${esc(s.payEffDate)}" oninput="s.payEffDate=this.value">
+          <span class="hint">Leave blank for a line to fill in by hand</span>
+        </div>
+        <div class="field">
+          <label>Term (months)</label>
+          <input type="number" id="pay_term" value="${s.term}" min="1" oninput="s.term=parseInt(this.value)||1;s.termUnit='months';s.termTouched=true">
+        </div>
+      </div>
+
+      <div class="slabel">Scope &amp; Pricing</div>
+      <div class="fg g1">
+        <div class="field">
+          <label>Terms</label>
+          <textarea id="pay_scope" rows="9" placeholder="${paya
+            ?'e.g. Rev.io will migrate Licensee&apos;s existing Paya merchant accounts to Rev.io Payments at the rates set out below…'
+            :'e.g. Rev.io will provide Licensee with payment processing services at the rates set out below…'}"
+                    oninput="s.payScope=this.value">${esc(s.payScope)}</textarea>
+          <span class="hint">Becomes the body of the document. Write it as it should read in the agreement.</span>
+        </div>
+      </div>
+      <div class="callout warn" style="margin-top:14px">Payments pricing is not built into the tool yet — rates, fees and minimums need to be typed above. Tell the deal desk what the standard ${paya?'Paya migration':'new client'} pricing is and it can be made into proper fields.</div>
     </div>`;
   return card;
 }
@@ -21342,11 +21455,14 @@ function updateTierRec(){
 
 // ── Step 6: Review ────────────────────────────────────────────────────────
 function docTypeLabel(){
-  return s.docType==='quote'?'Quote':s.docType==='renewal'?'Renewal':s.docType==='addendum'?'Addendum':'Contract';
+  return s.docType==='quote'?'Quote':s.docType==='renewal'?'Renewal':s.docType==='addendum'?'Addendum'
+    :s.docType==='payments'?'Payments':'Contract';
 }
 function productLabel(){
   return s.products==='psa'?'New Rev.io'
     :s.products==='tigerpaw'?'Tigerpaw'
+    :s.products==='paya'?'Paya Migration'
+    :s.products==='paynew'?'New Client'
     :s.products==='billing'?'Classic Rev.io':'Rev.io';
 }
 // Classic Rev.io is the internal name; customers see Communications Billing.
@@ -21395,6 +21511,27 @@ function buildReview(){
     return;
   }
 
+
+  // A Payments deal stands alone too: the client, the dates and the rep's
+  // own terms. No platform pricing applies to it.
+  if(isPayments()){
+    const miss=[];
+    if(!s.company)miss.push('client name');
+    if(!s.payScope)miss.push('terms');
+    body.innerHTML=`<div class="rev-section"><h4>${productLabel()}</h4><table class="rev-tbl">
+        <tr><td>Client</td><td>${s.company?esc(s.company):'<span style="color:var(--text3)">not set</span>'}</td></tr>
+        <tr><td>Effective Date</td><td>${s.payEffDate?fmtDate(s.payEffDate):'<span style="color:var(--text3)">blank line to fill in</span>'}</td></tr>
+        <tr><td>Term</td><td>${termLabel()}</td></tr>
+        ${s.contact?`<tr><td>Client Contact</td><td>${esc(s.contact)}</td></tr>`:''}
+        ${s.email?`<tr><td>Contact Email</td><td>${esc(s.email)}</td></tr>`:''}
+        ${s.rep?`<tr><td>Sales Contact</td><td>${esc(s.rep)}</td></tr>`:''}
+      </table></div>
+      <div class="rev-section"><h4>Terms</h4>
+        <div style="font-size:14px;line-height:1.6;color:var(--text2);white-space:pre-wrap">${s.payScope?esc(s.payScope):'<span style="color:var(--text3)">No terms entered.</span>'}</div>
+      </div>`
+      +(miss.length?`<div class="callout warn" style="margin-top:14px">Still needed: ${miss.join(' and ')}.</div>`:'');
+    return;
+  }
 
   // Tigerpaw renewal section
   if(s.products==='tigerpaw'){
@@ -21609,7 +21746,7 @@ async function buildDocx(){
       new TableCell({
         width:{size:5800,type:WidthType.DXA},borders:nb(),margins:m(80,80,0,0),
         children:[
-          ...(s.docType!=='quote'?[para([run(s.docType==='renewal'?'RENEWAL AGREEMENT':s.docType==='addendum'?'SOFTWARE LICENSE AGREEMENT ADDENDUM':'SOFTWARE LICENSE AGREEMENT',{bold:true,size:20,color:NAVY})],{alignment:AlignmentType.RIGHT})]:[]),
+          ...(s.docType!=='quote'?[para([run(s.docType==='renewal'?'RENEWAL AGREEMENT':s.docType==='addendum'?'SOFTWARE LICENSE AGREEMENT ADDENDUM':s.docType==='payments'?'PAYMENT PROCESSING AGREEMENT':'SOFTWARE LICENSE AGREEMENT',{bold:true,size:20,color:NAVY})],{alignment:AlignmentType.RIGHT})]:[]),
           s.docType==='quote'
             ?para([run('SALES PROPOSAL',{bold:true,size:20,color:NAVY})],{alignment:AlignmentType.RIGHT})
             :para([run(' ')]),
@@ -21794,6 +21931,55 @@ async function buildDocx(){
       )]
     });
     return[secHdr('TERMS & CONDITIONS'),tosT,para([run('')]),sigTable()];
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // Payments — a Paya migration or a client new to Rev.io Payments. The
+  // rates live in the rep's own wording until payments pricing is defined.
+  // ════════════════════════════════════════════════════════════════════
+  if(s.docType==='payments'){
+    const licensee=s.company||'Licensee';
+    const asOf=s.payEffDate?fmtDate(s.payEffDate):'___________________';
+
+    const payCust=new Table({
+      width:{size:PAGE_W,type:WidthType.DXA},layout:TableLayoutType.FIXED,
+      rows:[row(
+        new TableCell({borders:bot(),shading:{fill:LGRAY,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
+          lbl('COMPANY'),val(s.company),lbl('SALES CONTACT'),val(s.rep),
+        ]}),
+        new TableCell({borders:bot(),shading:{fill:LGRAY,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
+          lbl('CONTACT'),val(s.contact),lbl('CONTACT EMAIL'),val(s.email),
+        ]}),
+        new TableCell({borders:bot(),shading:{fill:LGRAY,type:ShadingType.CLEAR},margins:m(120,120,160,160),children:[
+          lbl('EFFECTIVE DATE'),
+          s.payEffDate
+            ?para([run(fmtDate(s.payEffDate),{size:14,bold:true,color:DARK})],{spacing:{after:120}})
+            :para([run('___________________',{size:14,color:DARK})],{spacing:{after:120}}),
+          lbl('TERM'),para([run(termLabel(),{size:14,bold:true,color:DARK})],{spacing:{after:120}}),
+        ]}),
+      )]
+    });
+
+    const body=[
+      secHdr('PARTIES'),
+      para([run(`This Payment Processing Agreement ("Agreement") is made as of ${asOf}, by and between Rev.io, LLC ("Rev.io") and ${licensee} ("Licensee").`,{size:14,color:GRAY})],{spacing:{after:100}}),
+      ...(s.products==='paya'
+        ?[para([run('Licensee is an existing Paya merchant and wishes to migrate its payment processing to Rev.io Payments on the terms set out below.',{size:14,color:GRAY})],{spacing:{after:100}})]
+        :[para([run('Licensee wishes to engage Rev.io to provide payment processing services on the terms set out below.',{size:14,color:GRAY})],{spacing:{after:100}})]),
+
+      secHdr(s.products==='paya'?'MIGRATION & SERVICES':'SERVICES'),
+      // The rep's own wording, one paragraph per blank-line-separated block.
+      ...String(s.payScope||'').split(/\n\s*\n/).map(t=>t.trim()).filter(Boolean)
+         .map(t=>para([run(t,{size:14,color:DARK})],{spacing:{after:100}})),
+
+      secHdr('SIGNATURES'),
+      para([run('IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first written above.',{size:14,color:GRAY})],{spacing:{after:140}}),
+      sigTable(),
+    ];
+
+    return Packer.toBlob(new Document({sections:[{...pageProps,children:[
+      hdrTable,para([run('')]),payCust,para([run('')]),...body
+    ]}]}));
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -22169,8 +22355,8 @@ function logDocument(){
   }catch(e){}
 }
 
-const DOC_NAMES={quote:'Quotes',contract:'Contracts',renewal:'Renewals',addendum:'Addenda',unknown:'Other'};
-const PROD_NAMES={psa:'New Rev.io',billing:'Classic Rev.io',tigerpaw:'Tigerpaw',both:'Combined',none:'—'};
+const DOC_NAMES={quote:'Quotes',contract:'Contracts',renewal:'Renewals',addendum:'Addenda',payments:'Payments',unknown:'Other'};
+const PROD_NAMES={psa:'New Rev.io',billing:'Classic Rev.io',tigerpaw:'Tigerpaw',both:'Combined',paya:'Paya Migration',paynew:'New Client',none:'—'};
 
 function barRows(rows,names,total){
   if(!rows.length) return '<div class="hint" style="color:var(--text3)">Nothing yet.</div>';

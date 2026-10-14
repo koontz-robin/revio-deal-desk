@@ -2,8 +2,8 @@ import { getStore } from '@netlify/blobs';
 
 // Only these values are ever recorded. Anything else becomes 'unknown'/'none',
 // so a malformed or hostile post cannot write arbitrary strings into the store.
-const DOC_TYPES = new Set(['quote', 'contract', 'renewal', 'addendum']);
-const PRODUCTS = new Set(['psa', 'billing', 'tigerpaw', 'both', 'none']);
+const DOC_TYPES = new Set(['quote', 'contract', 'renewal', 'addendum', 'payments']);
+const PRODUCTS = new Set(['psa', 'billing', 'tigerpaw', 'both', 'paya', 'paynew', 'none']);
 
 export const STORE_NAME = 'deal-desk-events';
 
